@@ -4,11 +4,12 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { createGithubStore } = require('./github-store');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
-const DATA_DIR = path.join(ROOT, 'data');
+const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const GAMES_DIR = path.join(DATA_DIR, 'games');
 const DB_FILE = path.join(DATA_DIR, 'games.json');
 const MAX_BODY = 12 * 1024 * 1024; // 12MB (HTML 파일 + 표지 그림)
@@ -17,18 +18,64 @@ const ERAS = ['선사·고조선', '삼국·남북국', '고려', '조선', '근
 
 const SEED_DIR = path.join(ROOT, 'seed');
 
-fs.mkdirSync(GAMES_DIR, { recursive: true });
+// GITHUB_TOKEN과 GITHUB_REPO가 있으면 데이터를 GitHub 브랜치에 보관한다 (무료 호스팅용)
+const store = process.env.GITHUB_TOKEN && process.env.GITHUB_REPO
+  ? createGithubStore({ token: process.env.GITHUB_TOKEN, repo: process.env.GITHUB_REPO, branch: process.env.DATA_BRANCH })
+  : null;
+
 // 처음 켤 때 오락실이 텅 비지 않도록 견본 게임을 들여놓는다
-if (!fs.existsSync(DB_FILE)) {
+function seedGames() {
   const seedFile = path.join(SEED_DIR, 'games.json');
   const seeds = fs.existsSync(seedFile) ? JSON.parse(fs.readFileSync(seedFile, 'utf8')) : [];
   const now = new Date().toISOString();
+  const changes = {};
   const games = seeds.map(({ pin, ...g }) => {
     const html = path.join(SEED_DIR, 'games', `${g.id}.html`);
-    if (fs.existsSync(html)) fs.copyFileSync(html, path.join(GAMES_DIR, `${g.id}.html`));
+    if (fs.existsSync(html)) {
+      fs.copyFileSync(html, gameFile(g.id));
+      changes[`games/${g.id}.html`] = fs.readFileSync(html, 'utf8');
+    }
     return { plays: 0, createdAt: now, updatedAt: now, ...g, pinHash: hashPin(pin) };
   });
   fs.writeFileSync(DB_FILE, JSON.stringify(games, null, 2));
+  changes['games.json'] = fs.readFileSync(DB_FILE, 'utf8');
+  return changes;
+}
+
+async function prepareData() {
+  fs.mkdirSync(GAMES_DIR, { recursive: true });
+  if (store) {
+    const files = await store.loadAll();
+    for (const [rel, buf] of Object.entries(files)) {
+      if (rel !== 'games.json' && !/^games\/[a-f0-9]{12}\.html$/.test(rel)) continue;
+      fs.writeFileSync(path.join(DATA_DIR, rel), buf);
+    }
+    if (!files['games.json']) await store.save(seedGames(), '견본 게임 들여놓기');
+    console.log(`데이터 보관소: GitHub ${store.describe}`);
+  } else if (!fs.existsSync(DB_FILE)) {
+    seedGames();
+  }
+}
+
+// 바뀐 파일을 보관소에 올린다. 로컬 실행(보관소 없음)이면 아무 일도 하지 않는다.
+async function persist(changes, message) {
+  if (!store) return;
+  changes['games.json'] = fs.readFileSync(DB_FILE, 'utf8');
+  try {
+    await store.save(changes, message);
+  } catch (e) {
+    console.error('보관소 저장 실패, 다음 저장 때 다시 올립니다:', e.message);
+  }
+}
+
+// 플레이 횟수는 판마다 커밋하지 않고 10분에 한 번 모아서 올린다
+let playsTimer = null;
+function persistPlaysLater() {
+  if (!store || playsTimer) return;
+  playsTimer = setTimeout(() => {
+    playsTimer = null;
+    persist({}, '플레이 횟수 기록');
+  }, 10 * 60 * 1000);
 }
 
 const MIME = {
@@ -196,6 +243,7 @@ async function handleApi(req, res, url) {
     if (data.kind === 'html') fs.writeFileSync(gameFile(game.id), data.html);
     games.unshift(game);
     writeDb(games);
+    await persist(data.kind === 'html' ? { [`games/${game.id}.html`]: data.html } : {}, `게임 등록: ${game.title}`);
     return send(res, 201, { game: publicGame(game) });
   }
 
@@ -206,6 +254,7 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && parts[3] === 'play') {
     game.plays = (game.plays || 0) + 1;
     writeDb(games);
+    persistPlaysLater();
     return send(res, 200, { plays: game.plays });
   }
 
@@ -219,11 +268,16 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     if (!checkPin(body.pin, game.pinHash)) return send(res, 403, { error: '비밀번호가 맞지 않습니다.' });
     const data = validate(body, true);
+    const changes = {};
     if (data.html !== undefined) {
       fs.writeFileSync(gameFile(game.id), data.html);
+      changes[`games/${game.id}.html`] = data.html;
       delete data.html;
     }
-    if (data.kind === 'link' && fs.existsSync(gameFile(game.id))) fs.unlinkSync(gameFile(game.id));
+    if (data.kind === 'link' && fs.existsSync(gameFile(game.id))) {
+      fs.unlinkSync(gameFile(game.id));
+      changes[`games/${game.id}.html`] = null;
+    }
     if (data.kind === 'html') {
       data.url = '';
       if (!fs.existsSync(gameFile(game.id))) return send(res, 400, { error: 'HTML 파일을 골라 주세요.' });
@@ -234,6 +288,7 @@ async function handleApi(req, res, url) {
     }
     Object.assign(game, data, { updatedAt: new Date().toISOString() });
     writeDb(games);
+    await persist(changes, `게임 수정: ${game.title}`);
     return send(res, 200, { game: publicGame(game) });
   }
 
@@ -242,7 +297,12 @@ async function handleApi(req, res, url) {
     if (!checkPin(body.pin, game.pinHash)) return send(res, 403, { error: '비밀번호가 맞지 않습니다.' });
     games.splice(idx, 1);
     writeDb(games);
-    if (fs.existsSync(gameFile(game.id))) fs.unlinkSync(gameFile(game.id));
+    const changes = {};
+    if (fs.existsSync(gameFile(game.id))) {
+      fs.unlinkSync(gameFile(game.id));
+      changes[`games/${game.id}.html`] = null;
+    }
+    await persist(changes, `게임 치움: ${game.title}`);
     return send(res, 200, { ok: true });
   }
 
@@ -273,8 +333,7 @@ function serveStatic(res, pathname) {
   fs.createReadStream(file).pipe(res);
 }
 
-http
-  .createServer(async (req, res) => {
+const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     try {
       if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
@@ -285,7 +344,17 @@ http
       if (!e.status) console.error(e);
       if (!res.headersSent) send(res, e.status || 500, { error: e.status ? e.message : '서버에서 문제가 생겼습니다.' });
     }
-  })
-  .listen(PORT, () => {
-    console.log(`역사오락실 영업 시작 → http://localhost:${PORT}`);
+});
+
+prepareData()
+  .then(() => server.listen(PORT, () => console.log(`역사오락실 영업 시작 → http://localhost:${PORT}`)))
+  .catch((e) => {
+    console.error('데이터를 불러오지 못해 서버를 켜지 않았습니다:', e.message);
+    process.exit(1);
   });
+
+// 호스팅이 서버를 끌 때 모아 둔 플레이 횟수를 먼저 올린다
+process.on('SIGTERM', async () => {
+  if (playsTimer) { clearTimeout(playsTimer); await persist({}, '플레이 횟수 기록'); }
+  process.exit(0);
+});

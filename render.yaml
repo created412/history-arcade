@@ -1,0 +1,21 @@
+# Render 블루프린트 — 저장소를 연결하면 이 설정대로 무료 웹 서비스가 만들어진다
+services:
+  - type: web
+    name: history-arcade
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/games
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # 올라온 게임을 보관할 저장소와 브랜치 (main이 아니라서 게임을 올려도 재배포되지 않는다)
+      - key: GITHUB_REPO
+        value: created412/history-arcade
+      - key: DATA_BRANCH
+        value: arcade-data
+      # 이 저장소의 Contents 읽기·쓰기 권한만 준 fine-grained 토큰을 Render 화면에서 직접 넣는다
+      - key: GITHUB_TOKEN
+        sync: false

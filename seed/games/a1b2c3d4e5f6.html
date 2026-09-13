@@ -8,20 +8,21 @@
 <style>
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px;
-    background: #0b1030; color: #f4ecdc; font-family: 'Galmuri11', 'Malgun Gothic', sans-serif; }
+    background: #203a1b; color: #f4ecdc; font-family: 'Galmuri11', 'Malgun Gothic', sans-serif; }
   .hud { display: flex; justify-content: space-between; gap: 16px; width: min(720px, 100%); font-size: 18px; margin-bottom: 16px; }
-  .hud b { color: #f5c542; font-weight: 400; }
-  h1 { text-align: center; font-size: clamp(22px, 5vw, 34px); margin: 0 0 20px; color: #fff; text-shadow: 0 0 12px #e8452c; }
+  .hud b { color: #e2b458; font-weight: 400; }
+  h1 { text-align: center; font-size: clamp(22px, 5vw, 34px); margin: 0 0 20px; color: #fff; text-shadow: 0 0 12px #efbdb3; }
   .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: min(720px, 100%); }
-  .card { font: inherit; font-size: clamp(18px, 4vw, 26px); color: #17132b; background: #efe4cb; border: 0;
-    padding: 36px 16px; min-height: 160px; cursor: pointer; box-shadow: inset -6px -6px 0 #b9a67f, 6px 6px 0 #000; }
-  .card:hover { background: #fff6dd; }
-  .card:focus-visible { outline: 4px solid #f5c542; outline-offset: 4px; }
-  .card small { display: block; margin-top: 12px; font-size: 16px; color: #3a63c9; min-height: 1.4em; }
-  .card.right { background: #2fae84; color: #fff; }
-  .card.wrong { background: #e8452c; color: #fff; }
+  .card { font: inherit; font-size: clamp(18px, 4vw, 26px); color: #16291a; background: #f6eee2; border: 0;
+    padding: 36px 16px; min-height: 160px; cursor: pointer; box-shadow: inset -6px -6px 0 #cbbfa9, 6px 6px 0 #000; }
+  .card:hover { background: #fffaf2; }
+  .card:focus-visible { outline: 4px solid #e2b458; outline-offset: 4px; }
+  .card small { display: block; margin-top: 12px; font-size: 16px; color: #2c4a26; min-height: 1.4em; }
+  .card.right { background: #3f7a4a; color: #fff; }
+  .card.right small, .card.wrong small { color: #fff; }
+  .card.wrong { background: #b8493a; color: #fff; }
   .msg { text-align: center; min-height: 2em; margin-top: 18px; font-size: 18px; }
-  .start { font: inherit; font-size: 22px; background: #f5c542; color: #17132b; border: 0; padding: 14px 28px; cursor: pointer; box-shadow: inset -5px -5px 0 #a47b12; }
+  .start { font: inherit; font-size: 22px; background: #e2b458; color: #16291a; border: 0; padding: 14px 28px; cursor: pointer; box-shadow: inset -5px -5px 0 #a47a26; }
   .center { text-align: center; }
   @media (max-width: 480px) { .cards { grid-template-columns: 1fr; } }
 </style>
