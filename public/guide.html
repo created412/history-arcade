@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>선생님용 사용 안내 | 시간여행 역사</title>
+  <meta name="description" content="시간여행 역사에 선생님이 입장하고, 역사 게임을 올리고, 학생에게 안내하는 방법">
+  <meta name="theme-color" content="#203a1b">
+  <link rel="icon" href="ticket.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Black+Han+Sans&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .guide-hero {
+      margin-inline: -16px;
+      padding: 40px 16px 34px;
+      background:
+        radial-gradient(ellipse 60% 70% at 10% 0%, rgba(239, 189, 179, .2), transparent 70%),
+        linear-gradient(180deg, #102310, var(--green));
+    }
+    .guide-hero-inner { max-width: 1100px; margin: 0 auto; }
+    .guide-hero h1 { margin: 6px 0 0; font-family: var(--display); font-size: clamp(38px, 6vw, 64px); line-height: 1.1; }
+    .guide-hero p { margin: 14px 0 0; max-width: 38em; font-family: var(--pixel-big); font-size: 17px; line-height: 1.8; }
+    .guide-hero .btn { margin-top: 20px; }
+
+    .guide {
+      max-width: 1100px; margin: 0 auto;
+      padding-block: 30px 72px;
+      display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 32px; align-items: start;
+    }
+    .toc { position: sticky; top: 84px; }
+    .toc b { display: block; margin-bottom: 8px; font-family: var(--display); font-size: 18px; }
+    .toc ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; counter-reset: toc; }
+    .toc li { counter-increment: toc; }
+    .toc a {
+      display: flex; gap: 8px; padding: 7px 10px 5px; border-radius: 8px;
+      color: var(--cream-dim); text-decoration: none; font-size: 14px;
+    }
+    .toc a::before { content: counter(toc); color: var(--pink); min-width: 1.2em; }
+    .toc a:hover { background: rgba(246, 238, 226, .08); color: var(--cream); }
+
+    .doc { display: grid; gap: 22px; }
+    .card {
+      scroll-margin-top: 84px;
+      padding: 26px 28px 24px;
+      border-radius: 16px;
+      background: var(--cream); color: var(--ink);
+      box-shadow: 0 12px 30px rgba(0, 0, 0, .25);
+      line-height: 1.8;
+    }
+    .card h2 {
+      margin: 0 0 12px;
+      display: flex; align-items: center; gap: 12px;
+      font-family: var(--display); font-size: 28px; line-height: 1.2;
+    }
+    .card h2 .num {
+      flex: none; width: 40px; height: 40px; border-radius: 50%;
+      display: grid; place-items: center;
+      font-size: 20px; color: var(--cream); background: var(--green); box-shadow: 0 0 0 4px var(--pink);
+    }
+    .card h3 { margin: 20px 0 6px; font-family: var(--display); font-size: 20px; line-height: 1.3; }
+    .card p { margin: 8px 0; }
+    .card ol, .card ul { margin: 8px 0; padding-left: 1.4em; }
+    .card li { margin: 4px 0; }
+    .card li::marker { color: #6b8a5f; }
+    .card b { font-family: var(--pixel-big); font-weight: 400; color: #1f4a2a; }
+    .ui { display: inline-block; padding: 0 8px; border-radius: 6px; background: #e3dac7; font-family: var(--pixel-big); white-space: nowrap; }
+    .tip, .warn {
+      margin: 14px 0 4px; padding: 12px 16px; border-radius: 10px; font-size: 15px;
+    }
+    .tip { background: #e5efe0; border-left: 5px solid #5d8f57; }
+    .warn { background: #f6e1d9; border-left: 5px solid var(--stamp); }
+    .card table { width: 100%; border-collapse: collapse; font-size: 15px; }
+    .table-scroll { overflow-x: auto; margin: 10px 0; }
+    .card th, .card td { padding: 8px 10px; border-bottom: 1px solid var(--paper-line); text-align: left; vertical-align: top; }
+    .card th { font-weight: 400; font-size: 13px; color: #5a6b57; white-space: nowrap; }
+    .stage-dot { display: inline-block; width: 12px; height: 12px; margin-right: 6px; border-radius: 50%; background: var(--c); vertical-align: -1px; }
+    pre.code {
+      margin: 10px 0; padding: 14px 16px; border-radius: 10px; overflow-x: auto;
+      background: var(--green-deep); color: var(--amber);
+      font-family: ui-monospace, Consolas, 'D2Coding', monospace; font-size: 14px; line-height: 1.7; white-space: pre;
+    }
+    .copy-box { position: relative; }
+    .copy-box .btn { position: absolute; top: 10px; right: 10px; }
+    .notice-text {
+      margin: 10px 0; padding: 16px 18px; border-radius: 10px;
+      background: #fffaf2; border: 2px dashed var(--paper-line);
+      white-space: pre-line; font-size: 15px;
+    }
+    details.faq { border-bottom: 1px solid var(--paper-line); padding: 10px 0; }
+    details.faq summary { cursor: pointer; font-family: var(--pixel-big); font-size: 16px; list-style: none; display: flex; gap: 8px; }
+    details.faq summary::before { content: "Q"; color: var(--stamp); font-family: var(--display); }
+    details.faq summary::-webkit-details-marker { display: none; }
+    details.faq p { margin: 8px 0 2px 1.6em; }
+
+    @media (max-width: 860px) {
+      .guide { grid-template-columns: minmax(0, 1fr); }
+      .toc { position: static; }
+      .toc ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .card { padding: 22px 18px 20px; }
+      .copy-box .btn { position: static; margin-top: 6px; }
+    }
+    @media print {
+      body { background: #fff; color: #000; padding: 0; }
+      .topnav, .toc, .guide-hero .btn, .copy-box .btn, .footer { display: none !important; }
+      .guide-hero { background: none; color: #000; padding: 0 0 12px; margin: 0; }
+      .guide { display: block; padding: 0; }
+      .card { box-shadow: none; border: 1px solid #ccc; break-inside: avoid-page; margin-bottom: 14px; }
+      details.faq { break-inside: avoid; }
+      details.faq > p { display: block; }
+      pre.code { background: #f3f3f3; color: #000; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topnav">
+    <div class="topnav-inner">
+      <a class="brand" href="/" aria-label="시간여행 역사 처음 화면으로">
+        <img src="ticket.svg" alt="" width="30" height="30">
+        <span>시간여행 <b>역사</b></span>
+      </a>
+      <span class="spacer"></span>
+      <button class="btn btn-ghost btn-small" type="button" onclick="window.print()">인쇄하기</button>
+      <a class="btn btn-primary btn-small" href="/">사이트로 가기</a>
+    </div>
+  </header>
+
+  <section class="guide-hero">
+    <div class="guide-hero-inner">
+      <p class="hero-latin cover-text" lang="en">media&amp;history</p>
+      <h1 class="cover-text">선생님용 사용 안내</h1>
+      <p>시간여행 역사는 ‘미디어와 역사수업 실천모임’ 여러 학교 선생님들이 만든 역사 게임을 함께 올리고, 학생들이 엽전을 모으며 즐기는 곳입니다. 처음이라면 1번부터 차례로 따라 해 보세요.</p>
+    </div>
+  </section>
+
+  <div class="guide">
+    <nav class="toc" aria-label="안내 차례">
+      <b>차례</b>
+      <ol>
+        <li><a href="#enter">선생님으로 입장</a></li>
+        <li><a href="#prepare">게임 파일 준비</a></li>
+        <li><a href="#upload">게임 올리기</a></li>
+        <li><a href="#coins">엽전과 클리어 신호</a></li>
+        <li><a href="#students">학생에게 알리기</a></li>
+        <li><a href="#edit">고치기와 내리기</a></li>
+        <li><a href="#schools">여러 학교가 함께 쓰기</a></li>
+        <li><a href="#faq">자주 묻는 질문</a></li>
+      </ol>
+    </nav>
+
+    <main class="doc">
+      <section class="card" id="enter">
+        <h2><span class="num">1</span>선생님으로 입장하기</h2>
+        <ol>
+          <li>사이트 오른쪽 위 <span class="ui">입장하기</span>를 누릅니다.</li>
+          <li>창 위쪽에서 <span class="ui">선생님</span> 탭을 고릅니다.</li>
+          <li>세 칸을 채우고 <span class="ui">선생님으로 들어오기</span>를 누릅니다.
+            <ul>
+              <li><b>모임 비밀번호</b>: 모임 안내로 받은 비밀번호</li>
+              <li><b>학교 이름</b>: 예) 한빛중학교</li>
+              <li><b>선생님 이름</b>: 예) 김역사</li>
+            </ul>
+          </li>
+        </ol>
+        <p>처음 들어오면 그 학교와 이름으로 자동 등록됩니다. 따로 가입할 필요가 없습니다.</p>
+        <div class="warn">
+          <b>다음에도 똑같이 적어 주세요.</b> ‘한빛중학교 김역사’로 올린 게임은 ‘한빛중학교 김역사’로 들어와야 바로 고칠 수 있습니다.
+          ‘한빛중’과 ‘한빛중학교’는 다른 학교로 봅니다. 띄어쓰기 차이(‘한빛중 학교’)는 같은 학교로 봅니다.
+        </div>
+        <div class="tip">모임 비밀번호는 이 안내문이나 학생에게 알려 주지 마세요. 사이트는 누구나 볼 수 있습니다.</div>
+      </section>
+
+      <section class="card" id="prepare">
+        <h2><span class="num">2</span>게임 파일 준비하기</h2>
+        <p>게임은 두 가지 방식으로 올릴 수 있습니다.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th scope="col">방식</th><th scope="col">이런 게임</th><th scope="col">알아 둘 점</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><b>HTML 파일</b></td>
+                <td>직접 만들었거나 AI로 만든 .html 게임</td>
+                <td>파일 <b>한 개</b>여야 합니다. 그림·소리도 파일 안에 넣어 두세요. <b>100MB</b>까지 올릴 수 있습니다. 엽전 차비와 클리어 보상을 쓸 수 있습니다.</td>
+              </tr>
+              <tr>
+                <td><b>링크</b></td>
+                <td>스크래치, 구글 사이트, Genially, 띵커벨 같은 사이트에 만든 게임</td>
+                <td>주소만 붙입니다. 클리어 신호를 보낼 수 없어 <b>무료 게임</b>이 됩니다. 사이트에 따라 화면 안에서 열리지 않으면 학생이 <span class="ui">새 창에서 열기</span>로 즐깁니다.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="tip">HTML 파일은 올리기 전에 내 컴퓨터에서 더블클릭해 브라우저로 열어 보세요. 거기서 잘 되면 사이트에서도 됩니다.</div>
+      </section>
+
+      <section class="card" id="upload">
+        <h2><span class="num">3</span>게임 올리기</h2>
+        <ol>
+          <li>선생님으로 입장한 뒤 <span class="ui">＋ 게임 올리기</span>를 누릅니다.</li>
+          <li><b>게임 이름</b>과 <b>알맞은 학년</b>을 적습니다. <b>만든 선생님</b>은 입장한 이름으로 채워져 있습니다.</li>
+          <li><b>다루는 시대</b>를 고릅니다. 한 시대만 다루지 않으면 <b>여러 시대</b>를 고르세요.</li>
+          <li><b>한 줄 소개</b>와 <b>하는 방법</b>을 적습니다. 하는 방법은 학생이 게임 시작 전에 보는 안내입니다.</li>
+          <li><b>올리는 방식</b>(HTML 파일 / 링크)을 고르고 파일이나 주소를 넣습니다.</li>
+          <li>HTML 게임이면 <b>차비</b>와 <b>클리어 보상</b>을 정합니다. (4번 참고)</li>
+          <li><b>표지 그림</b>은 넣고 싶을 때만 고릅니다. 1.5MB 이하 그림을 쓰세요.</li>
+          <li><b>게임 비밀번호</b>는 다른 선생님과 함께 고치고 싶을 때만 정합니다. 비워 두면 나만 고칠 수 있습니다.</li>
+          <li><span class="ui">게임 올리기</span>를 누릅니다. 큰 파일은 버튼에 진행률이 보이니 창을 닫지 말고 기다려 주세요.</li>
+        </ol>
+
+        <h3>시대(판) 고르는 표</h3>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th scope="col">노선</th><th scope="col">판</th></tr></thead>
+            <tbody>
+              <tr><td><span class="stage-dot" style="--c:var(--line-korea)"></span>한국사</td><td>1판 선사·고조선, 2판 삼국·남북국, 3판 고려, 4판 조선, 5판 근대, 6판 현대</td></tr>
+              <tr><td><span class="stage-dot" style="--c:var(--line-east)"></span>동양사</td><td>7판 동양고대사, 8판 동양중세사, 9판 동양근대사, 10판 동양현대사</td></tr>
+              <tr><td><span class="stage-dot" style="--c:var(--line-west)"></span>서양사</td><td>11판 서양고대사, 12판 서양중세사, 13판 서양근세사, 14판 서양근대사, 15판 서양현대사</td></tr>
+              <tr><td><span class="stage-dot" style="--c:var(--cream-dim)"></span>여러 시대</td><td>여러 시대를 오가는 게임 (예: 연표 순서 맞추기)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card" id="coins">
+        <h2><span class="num">4</span>엽전과 클리어 신호</h2>
+        <p>학생은 게임을 탈 때 엽전(차비)을 내고, 끝까지 깨면 엽전(보상)을 받아 다른 게임을 탑니다.</p>
+        <div class="table-scroll">
+          <table>
+            <thead><tr><th scope="col">누가</th><th scope="col">엽전</th></tr></thead>
+            <tbody>
+              <tr><td><b>학생</b></td><td>처음 입장하면 <b>3닢</b>. 차비를 내고 타고, 클리어하면 보상을 받습니다.</td></tr>
+              <tr><td><b>선생님</b></td><td>엽전 없이 모든 게임을 탑니다.</td></tr>
+              <tr><td><b>입장하지 않은 사람</b></td><td>무료 게임만 탈 수 있습니다.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul>
+          <li><b>차비</b>: 0~5닢 (기본 1닢). 0닢으로 두면 무료 게임입니다.</li>
+          <li><b>클리어 보상</b>: 0~10닢 (기본 2닢). 어려운 게임일수록 크게 주세요.</li>
+        </ul>
+
+        <h3>클리어 신호 넣기</h3>
+        <p>학생이 게임을 깼을 때 아래 <b>한 줄</b>이 실행되게 하면 보상이 자동으로 들어갑니다. 신호가 없으면 차비만 내고 보상은 받지 못합니다.</p>
+        <div class="copy-box">
+          <pre class="code" id="signalCode">parent.postMessage({ type: 'history-station:clear' }, '*');</pre>
+          <button class="btn btn-quiet btn-small" type="button" data-copy="signalCode">복사</button>
+        </div>
+        <p>예를 들어 ‘승리!’ 화면을 보여 주는 곳에 넣습니다.</p>
+        <div class="copy-box">
+          <pre class="code" id="signalExample">function showWin() {
+  document.getElementById('result').textContent = '승리!';
+  // 시간여행 역사에 클리어를 알립니다
+  parent.postMessage({ type: 'history-station:clear' }, '*');
+}</pre>
+          <button class="btn btn-quiet btn-small" type="button" data-copy="signalExample">복사</button>
+        </div>
+        <div class="tip">AI로 게임을 만든다면 “게임을 클리어하면 <code>parent.postMessage({ type: 'history-station:clear' }, '*')</code>를 한 번 실행해 줘”라고 요청하면 됩니다.</div>
+        <ul>
+          <li>보상은 한 번 탈 때 <b>한 번만</b> 들어갑니다.</li>
+          <li>게임을 시작하고 <b>10초</b>가 지나기 전에 온 신호는 받지 않습니다.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="students">
+        <h2><span class="num">5</span>학생에게 알리기</h2>
+        <p>학생은 따로 가입하지 않습니다. <b>학교 이름과 학번</b>만 적으면 들어올 수 있습니다. 아래 안내문을 복사해 학급 알림방이나 칠판에 붙여 주세요.</p>
+        <div class="copy-box">
+          <div class="notice-text" id="studentNotice">🎫 시간여행 역사에서 역사 게임을 해 봐요!
+
+1. <span class="site-url">https://history-arcade.onrender.com</span> 에 들어가요.
+2. 오른쪽 위 [입장하기] → [학생]을 눌러요.
+3. 학교 이름(예: 한빛중학교)과 내 학번을 적어요. 처음이면 엽전 3닢을 받아요.
+4. 시대를 고르고 게임을 눌러요. 차비만큼 엽전을 내고 타요.
+5. 게임을 끝까지 깨면 엽전을 받아요. 모은 엽전으로 다른 게임을 타요!
+
+※ 다음에도 같은 학교 이름과 학번으로 들어와야 엽전이 이어져요.
+※ 친구 학번으로 들어가면 친구 엽전이 줄어요. 꼭 내 학번으로!
+※ 처음 접속할 때 1분 가까이 걸릴 수 있어요. 기다려 주세요.</div>
+          <button class="btn btn-quiet btn-small" type="button" data-copy="studentNotice">안내문 복사</button>
+        </div>
+        <div class="warn">학생 입장에는 비밀번호가 없어, 다른 학생의 학교와 학번을 알면 그 학생 엽전을 쓸 수 있습니다. 엽전은 수업용 보상이니 학생들에게 내 학번으로만 들어오도록 약속해 주세요.</div>
+      </section>
+
+      <section class="card" id="edit">
+        <h2><span class="num">6</span>고치기와 내리기</h2>
+        <ul>
+          <li><b>내가 올린 게임</b>: 게임 카드의 <span class="ui">고치기</span>를 누르면 바로 고치는 창이 열립니다.</li>
+          <li><b>다른 선생님의 게임</b>: 그 선생님이 게임 비밀번호를 정해 두었다면, 비밀번호를 받아 고칠 수 있습니다. 비밀번호가 없는 게임에는 고치기 버튼이 보이지 않습니다.</li>
+          <li><b>파일 바꾸기</b>: 고치는 창에서 새 HTML 파일을 고르면 바뀝니다. 파일을 고르지 않으면 원래 파일이 그대로 남습니다.</li>
+          <li><b>게임 내리기</b>: 고치는 창 왼쪽 아래 <span class="ui">게임 내리기</span>를 <b>두 번</b> 누르면 사이트에서 사라집니다. 되돌릴 수 없습니다.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="schools">
+        <h2><span class="num">7</span>여러 학교가 함께 쓰기</h2>
+        <ul>
+          <li>게임 카드에는 <b>올린 학교와 선생님</b>이 함께 표시됩니다. 예) 한빛중학교 김역사 선생님</li>
+          <li>게임 목록 오른쪽 위 <span class="ui">학교</span> 칸에서 <b>우리 학교</b>나 특정 학교 게임만 골라 볼 수 있습니다.</li>
+          <li><b>다른 학교 선생님이 올린 게임도 누구나 수업에 쓸 수 있습니다.</b> 좋은 게임은 서로 나눠 주세요.</li>
+          <li>학생 엽전은 <b>학교 이름 + 학번</b>으로 따로 쌓입니다. 학번이 같아도 학교가 다르면 다른 학생입니다.</li>
+          <li>게임을 고치고 내리는 것은 올린 선생님(또는 게임 비밀번호를 아는 선생님)만 할 수 있어, 다른 학교 게임이 실수로 바뀌지 않습니다.</li>
+        </ul>
+      </section>
+
+      <section class="card" id="faq">
+        <h2><span class="num">?</span>자주 묻는 질문</h2>
+        <details class="faq">
+          <summary>사이트가 처음에 한참 동안 안 열려요.</summary>
+          <p>무료 서버라 15분 동안 아무도 들어오지 않으면 잠듭니다. 다시 깨어나는 데 50초쯤 걸리니 새로고침하지 말고 기다려 주세요. 수업 전에 선생님이 한 번 먼저 열어 두면 좋습니다.</p>
+        </details>
+        <details class="faq">
+          <summary>링크로 올린 게임이 화면에 안 떠요.</summary>
+          <p>일부 사이트는 다른 사이트 안에서 열리지 않도록 막아 둡니다. 게임 화면 위의 <span class="ui">새 창에서 열기</span>를 누르면 됩니다.</p>
+        </details>
+        <details class="faq">
+          <summary>클리어 신호를 넣었는데 엽전이 안 들어와요.</summary>
+          <p>① 학생이 <b>입장한 상태</b>인지 ② 게임 시작 뒤 <b>10초</b>가 지났는지 ③ 한 번 탈 때 <b>이미 받은 건 아닌지</b> 확인해 주세요. 선생님으로 타면 보상은 들어가지 않고 ‘도착!’ 알림만 뜹니다. 이 알림이 뜨면 신호는 제대로 들어간 것입니다.</p>
+        </details>
+        <details class="faq">
+          <summary>학생 엽전이 다 떨어졌어요.</summary>
+          <p>차비 0닢인 무료 게임이나 차비보다 보상이 큰 게임을 함께 올려 두면 학생이 다시 엽전을 모을 수 있습니다.</p>
+        </details>
+        <details class="faq">
+          <summary>학생이 학번을 잘못 적고 들어갔어요.</summary>
+          <p>학번이 다르면 새 학생으로 등록되어 엽전이 따로 쌓입니다. 나간 뒤 <b>원래 학번</b>으로 다시 들어오면 모은 엽전이 그대로 있습니다.</p>
+        </details>
+        <details class="faq">
+          <summary>제가 올린 게임에 고치기 버튼이 없어요.</summary>
+          <p>게임을 올릴 때와 <b>다른 학교 이름이나 선생님 이름</b>으로 들어온 것입니다. 오른쪽 위 <span class="ui">나가기</span>를 누르고 올릴 때와 똑같은 이름으로 다시 입장해 주세요.</p>
+        </details>
+        <details class="faq">
+          <summary>큰 파일을 올리다가 멈췄어요.</summary>
+          <p>파일은 100MB까지 올릴 수 있습니다. 인터넷이 느리면 오래 걸리니 창을 닫지 말고 기다려 주세요. 실패했다고 나오면 게임 정보는 저장되지 않았으니 다시 올리면 됩니다. 그림과 소리를 줄이면 파일이 작아집니다.</p>
+        </details>
+      </section>
+    </main>
+  </div>
+
+  <footer class="footer">
+    <p>시간여행 역사는 ‘미디어와 역사수업 실천모임’ 여러 학교 선생님들의 공동 작업 공간입니다.</p>
+  </footer>
+
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script>
+    // 학생 안내문에 지금 사이트 주소를 넣는다
+    document.querySelectorAll('.site-url').forEach((el) => { el.textContent = location.origin; });
+
+    const toast = (message) => {
+      const t = document.getElementById('toast');
+      t.textContent = message;
+      t.hidden = false;
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => { t.hidden = true; }, 2200);
+    };
+    document.querySelectorAll('[data-copy]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const text = document.getElementById(btn.dataset.copy).innerText;
+        navigator.clipboard?.writeText(text)
+          .then(() => toast('복사했습니다.'))
+          .catch(() => toast('복사하지 못했습니다. 글자를 직접 선택해 복사해 주세요.'));
+      });
+    });
+    // 인쇄할 때는 자주 묻는 질문을 모두 펼친다
+    window.addEventListener('beforeprint', () => document.querySelectorAll('details.faq').forEach((d) => { d.open = true; }));
+  </script>
+</body>
+</html>

@@ -922,3 +922,28 @@ h1, h2, h3 { font-weight: 400; }
   .train { animation: none; transform: translateX(8vw); }
   .gate.punched .punch, .gate.punched .stamp, .ticket, .ticket-window img, .window-art, .line-tab, .station-dot { transition: none; }
 }
+
+/* ───────── 여러 학교 ───────── */
+.guide-link {
+  flex: none;
+  padding: 7px 14px 5px; border-radius: 999px;
+  color: var(--cream); text-decoration: none;
+  font-family: var(--pixel-big); font-size: 14px;
+  box-shadow: inset 0 0 0 2px rgba(246, 238, 226, .28);
+}
+.guide-link:hover { background: rgba(246, 238, 226, .1); }
+.school-filter { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--cream-dim); }
+.school-filter select {
+  font: inherit; color: var(--cream);
+  padding: 7px 12px 5px; border-radius: 999px;
+  background: var(--green-deep); border: 2px solid var(--green-line);
+  max-width: 16em;
+}
+.school-filter select:focus { outline: none; border-color: var(--pink); }
+.ticket-maker { color: var(--ink); }
+.school-note { margin: -6px 0 0; padding: 8px 12px; border-radius: 3px; background: #e7efe2; font-size: 13px; color: #2f4a30; }
+@media (max-width: 560px) {
+  .guide-link { order: 2; }
+  .school-filter { margin-left: 0; width: 100%; }
+  .school-filter select { flex: 1; max-width: none; }
+}

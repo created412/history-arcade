@@ -17,11 +17,12 @@ const state = {
   editPin: '',
   cover: undefined,  // undefined: 그대로, '': 뺌, 'data:...': 새 그림
   pinAfter: null,
-  me: { role: 'guest' }, // guest | teacher | student(name, coins, className, classCode)
+  me: { role: 'guest' }, // guest | teacher(id, name, school) | student(school, number, coins)
   token: '',
   rideId: null,        // 지금 탄 열차의 승차 기록 (클리어 보상에 쓴다)
   loginAfter: null,    // 들어온 뒤 이어서 할 일
   limits: { gameBytes: 100 * 1024 * 1024 },
+  school: '',          // 학교 고르기 ('' = 모든 학교)
 };
 
 const SESSION_KEY = 'history-station-session';
@@ -98,10 +99,32 @@ function matchesFilter(g) {
   return true;
 }
 
+const schoolKey = (v) => String(v || '').replace(/\s/g, '');
+
 function visibleGames() {
   const q = state.query.trim().toLowerCase();
   return state.games.filter((g) =>
-    matchesFilter(g) && (!q || `${g.title} ${g.author} ${g.summary}`.toLowerCase().includes(q)));
+    matchesFilter(g)
+    && (!state.school || schoolKey(g.school) === schoolKey(state.school))
+    && (!q || `${g.title} ${g.author} ${g.school} ${g.summary}`.toLowerCase().includes(q)));
+}
+
+// 게임을 올린 학교 목록으로 학교 고르기 칸을 채운다. 들어온 사람의 학교는 맨 위에 둔다.
+function renderSchoolFilter() {
+  const select = $('#schoolFilter');
+  const mine = state.me.school || '';
+  const schools = [...new Map(state.games.filter((g) => g.school).map((g) => [schoolKey(g.school), g.school])).entries()]
+    .filter(([key]) => key !== schoolKey(mine))
+    .map(([, name]) => name)
+    .sort((a, b) => a.localeCompare(b, 'ko'));
+  const options = [el('option', { value: '' }, '모든 학교')];
+  if (mine) options.push(el('option', { value: mine }, `우리 학교 (${mine})`));
+  options.push(...schools.map((s) => el('option', { value: s }, s)));
+  select.replaceChildren(...options);
+  const keep = [...select.options].find((o) => o.value && schoolKey(o.value) === schoolKey(state.school));
+  select.value = keep ? keep.value : '';
+  if (!keep) state.school = '';
+  select.closest('.school-filter').hidden = select.options.length <= 1;
 }
 
 /* ───────── 출발 안내판 ───────── */
@@ -204,10 +227,12 @@ function renderTickets() {
   $('#platformTitle').textContent = title;
 
   $('#platformStatus').textContent = games.length
-    ? `게임 ${games.length}개`
+    ? `게임 ${games.length}개${state.school ? `, ${state.school}` : ''}`
     : state.query
       ? `‘${state.query}’에 맞는 게임이 없습니다. 다른 이름으로 찾아보세요.`
-      : '아직 이 시대의 게임이 없습니다.';
+      : state.school
+        ? `${state.school}에서 올린 이 시대 게임이 아직 없습니다. 학교를 ‘모든 학교’로 바꿔 보세요.`
+        : '아직 이 시대의 게임이 없습니다.';
 
   wrap.replaceChildren(...games.map(ticket));
   if (!state.query && (isTeacher() || !games.length)) {
@@ -236,13 +261,13 @@ function ticket(g) {
       el('h3', { class: 'ticket-title' }, g.title),
       el('p', { class: 'ticket-summary' }, g.summary || '소개 글이 아직 없습니다.'),
       el('p', { class: 'ticket-meta' },
-        el('span', {}, `만든 선생님 ${g.author}`),
+        el('span', { class: 'ticket-maker' }, g.school ? `${g.school} ${g.author} 선생님` : `${g.author} 선생님`),
         g.grade ? el('span', {}, g.grade) : null,
         el('span', {}, `${g.plays || 0}번 탔어요`))),
     el('div', { class: 'ticket-stub' },
       fareLine(g),
       el('div', { class: 'ticket-buttons' },
-        isTeacher()
+        isTeacher() && (isMine(g) || g.hasPin)
           ? el('button', { class: 'btn btn-quiet', type: 'button', onclick: () => askPin(g), 'aria-label': `${g.title} 고치기` }, '고치기')
           : null,
         el('button', { class: 'btn btn-go', type: 'button', onclick: () => openRide(g) }, '▶ 타기'))));
@@ -268,14 +293,14 @@ function renderHero() {
   if (me.role === 'teacher') {
     box.replaceChildren(
       el('button', { class: 'btn btn-hero', type: 'button', onclick: () => openSheet(null) }, '＋ 게임 올리기'),
-      el('button', { class: 'btn btn-hero-ghost', type: 'button', onclick: openOffice }, '반 관리'),
-      el('p', { class: 'hero-note' }, '선생님은 엽전 없이 모든 게임을 탈 수 있어요.'));
+      el('a', { class: 'btn btn-hero-ghost', href: '/guide' }, '사용 안내'),
+      el('p', { class: 'hero-note' }, `${me.school} ${me.name} 선생님, 어서 오세요. 선생님은 엽전 없이 모든 게임을 탈 수 있어요.`));
   } else if (me.role === 'student') {
     box.replaceChildren(
       el('div', { class: 'hero-purse' },
         el('img', { src: 'coin.svg', alt: '' }),
         el('div', {},
-          el('small', {}, `${me.name}, ${me.className}`),
+          el('small', {}, `${me.school} ${me.number}`),
           el('b', { class: 'purse-count' }, `엽전 ${me.coins}닢`))),
       el('button', { class: 'btn btn-hero', type: 'button', onclick: scrollToGames }, '게임 고르러 가기 ↓'));
   } else {
@@ -288,12 +313,12 @@ function renderHero() {
 
   const steps = me.role === 'teacher'
     ? [
-      ['반 만들기', '반 관리에서 반을 만들고 반 코드를 학생들에게 알려 주세요.'],
-      ['게임 올리기', 'HTML 파일이나 링크를 올리고 차비와 클리어 보상을 정해요.'],
-      ['엽전 현황 보기', '반 관리에서 학생들이 모은 엽전과 클리어 횟수를 봐요.'],
+      ['게임 올리기', 'HTML 파일이나 링크를 올리고, 시대(판)와 차비·클리어 보상을 정해요.'],
+      ['학생에게 알리기', '학생은 학교 이름과 학번만 적으면 들어올 수 있다고 알려 주세요.'],
+      ['함께 쓰기', '다른 학교 선생님 게임도 수업에 쓸 수 있어요. 학교별로 골라 볼 수 있어요.'],
     ]
     : [
-      ['반 코드로 입장', '선생님께 받은 반 코드, 이름, 비밀번호 4자리로 들어와요. 처음엔 엽전 3닢!'],
+      ['학교와 학번으로 입장', '학교 이름과 학번만 적으면 들어와요. 처음엔 엽전 3닢!'],
       ['게임 골라 타기', '시대를 고르고 게임을 눌러요. 차비만큼 엽전을 내요.'],
       ['끝까지 깨고 엽전 받기', '게임을 깨면 엽전을 받아요. 모은 엽전으로 다른 게임을 타요.'],
     ];
@@ -471,14 +496,26 @@ function closeRide() {
   state.rideId = null;
 }
 
-/* ───────── 비밀번호 확인 ───────── */
+/* ───────── 고치기 권한 ───────── */
+const isMine = (g) => isTeacher() && g.ownerId && g.ownerId === state.me.id;
+
+// 내가 올린 게임은 바로 고치고, 다른 선생님 게임은 게임 비밀번호를 묻는다
 function askPin(g) {
   if (!isTeacher()) {
     openLogin('teacher', '게임을 고치려면 먼저 선생님으로 들어와 주세요.', () => askPin(g));
     return;
   }
+  if (isMine(g)) {
+    closeRide();
+    openSheet(g, '');
+    return;
+  }
+  if (!g.hasPin) {
+    toast(`이 게임은 ${g.school ? `${g.school} ` : ''}${g.author} 선생님만 고칠 수 있습니다.`);
+    return;
+  }
   state.pinAfter = g;
-  $('#pinLead').textContent = `‘${g.title}’ 열차를 고치려면 비밀번호를 적어 주세요.`;
+  $('#pinLead').textContent = `‘${g.title}’은 ${g.school ? `${g.school} ` : ''}${g.author} 선생님이 올린 게임입니다. 함께 고치려면 게임 비밀번호를 적어 주세요.`;
   $('#p-pin').value = '';
   $('#pinError').hidden = true;
   $('#pinDialog').showModal();
@@ -561,6 +598,10 @@ function openSheet(g, pin = '') {
     ? '지금 올라가 있는 파일을 바꿀 때만 새 파일을 골라 주세요.'
     : '그림·소리는 파일 안에 넣어 둔 한 개짜리 HTML이어야 합니다.';
 
+  $('#schoolNote').textContent = editing
+    ? `${g.school || '학교 정보 없음'}에서 올린 게임입니다.`
+    : `${state.me.school} ${state.me.name} 선생님 이름으로 올라갑니다. 다른 선생님 이름으로 올리려면 ‘만든 선생님’ 칸을 고쳐 주세요.`;
+
   if (editing) {
     for (const key of ['title', 'author', 'grade', 'summary', 'howTo', 'url']) form.elements[key].value = g[key] || '';
     form.elements.kind.value = g.kind;
@@ -568,6 +609,7 @@ function openSheet(g, pin = '') {
     form.elements.reward.value = g.reward ?? 2;
     checkEra(form, g.era);
   } else {
+    form.elements.author.value = state.me.name || '';
     checkEra(form, state.filter.era);
   }
   setKind(form.elements.kind.value);
@@ -658,8 +700,8 @@ async function submitSheet(e) {
   if (editing) {
     body.pin = state.editPin;
     if (f.newPin.value) body.newPin = f.newPin.value;
-  } else {
-    if (f.pin.value.length < 4) return fail('수정용 비밀번호를 4자 이상으로 정해 주세요.', f.pin);
+  } else if (f.pin.value) {
+    if (f.pin.value.length < 4) return fail('게임 비밀번호는 4자 이상으로 정하거나 비워 두세요.', f.pin);
     body.pin = f.pin.value;
   }
 
@@ -727,10 +769,13 @@ function saveSession() {
 }
 
 function setMe(me) {
-  const before = state.me.role;
+  const before = `${state.me.role}:${state.me.id || state.me.school || ''}`;
   state.me = me || { role: 'guest' };
   renderPassenger();
-  if (before !== state.me.role) renderTickets();
+  if (before !== `${state.me.role}:${state.me.id || state.me.school || ''}` && state.lines.length) {
+    renderSchoolFilter();
+    renderTickets();
+  }
 }
 
 function purseChip() {
@@ -750,13 +795,12 @@ function renderPassenger() {
   const me = state.me;
   if (me.role === 'teacher') {
     box.replaceChildren(
-      el('span', { class: 'pass-badge' }, '선생님'),
+      el('p', { class: 'passenger-who' }, el('span', { class: 'pass-badge' }, '선생님'), ` ${me.school} ${me.name}`),
       el('button', { class: 'btn btn-primary btn-small', type: 'button', onclick: () => openSheet(null) }, '＋ 게임 올리기'),
-      el('button', { class: 'btn btn-ghost btn-small', type: 'button', onclick: openOffice }, '반 관리'),
       el('button', { class: 'btn btn-ghost btn-small', type: 'button', onclick: logout }, '나가기'));
   } else if (me.role === 'student') {
     box.replaceChildren(
-      el('p', { class: 'passenger-who' }, me.name),
+      el('p', { class: 'passenger-who' }, `${me.school} ${me.number}`),
       purseChip(),
       el('button', { class: 'btn btn-ghost btn-small', type: 'button', onclick: logout }, '나가기'));
   } else {
@@ -779,7 +823,16 @@ function switchLoginTab(tab) {
   $('#tabTeacher').setAttribute('aria-selected', String(!student));
   $('#studentForm').hidden = !student;
   $('#teacherForm').hidden = student;
-  (student ? $('#s-code') : $('#t-password')).focus();
+  (student ? ($('#s-school').value ? $('#s-number') : $('#s-school')) : $('#t-password')).focus();
+}
+
+// 같은 컴퓨터에서 다시 들어올 때 학교 이름(선생님은 이름까지)을 채워 둔다
+const REMEMBER_KEY = 'history-station-remember';
+function remembered() {
+  try { return JSON.parse(localStorage.getItem(REMEMBER_KEY) || '{}'); } catch { return {}; }
+}
+function remember(values) {
+  try { localStorage.setItem(REMEMBER_KEY, JSON.stringify({ ...remembered(), ...values })); } catch { /* 기억하지 못해도 괜찮다 */ }
 }
 
 function openLogin(tab = 'student', reason = '', after = null) {
@@ -788,8 +841,12 @@ function openLogin(tab = 'student', reason = '', after = null) {
   $('#loginReason').hidden = !reason;
   $('#studentError').hidden = true;
   $('#teacherError').hidden = true;
+  const saved = remembered();
   $('#t-password').value = '';
-  $('#s-pin').value = '';
+  $('#s-number').value = '';
+  if (!$('#s-school').value) $('#s-school').value = saved.studentSchool || '';
+  if (!$('#t-school').value) $('#t-school').value = saved.teacherSchool || '';
+  if (!$('#t-name').value) $('#t-name').value = saved.teacherName || '';
   if (!$('#loginDialog').open) $('#loginDialog').showModal();
   switchLoginTab(tab);
 }
@@ -809,16 +866,16 @@ async function submitStudent(e) {
   e.preventDefault();
   const error = $('#studentError');
   error.hidden = true;
-  const body = { classCode: $('#s-code').value.trim(), name: $('#s-name').value.trim(), pin: $('#s-pin').value };
+  const body = { school: $('#s-school').value.trim(), number: $('#s-number').value.replace(/\s/g, '') };
   const fail = (msg, field) => { error.textContent = msg; error.hidden = false; field?.focus(); };
-  if (body.classCode.length !== 6) return fail('반 코드 6자리를 적어 주세요.', $('#s-code'));
-  if (!body.name) return fail('이름을 적어 주세요.', $('#s-name'));
-  if (!/^\d{4}$/.test(body.pin)) return fail('비밀번호는 숫자 4자리로 적어 주세요.', $('#s-pin'));
+  if (body.school.length < 2) return fail('학교 이름을 적어 주세요. 예) 한빛중학교', $('#s-school'));
+  if (!/^[0-9][0-9-]{0,11}$/.test(body.number)) return fail('학번을 숫자로 적어 주세요. 예) 20312', $('#s-number'));
   try {
     const result = await api('/api/session/student', { method: 'POST', body });
+    remember({ studentSchool: result.me.school });
     finishLogin(result, result.created
-      ? `어서 오세요, ${result.me.name} 승객님! 엽전 ${result.startingCoins}닢을 받았습니다.`
-      : `다시 오셨네요, ${result.me.name} 승객님. 엽전 ${result.me.coins}닢이 있습니다.`);
+      ? `어서 오세요, ${result.me.number} 승객님! 엽전 ${result.startingCoins}닢을 받았습니다.`
+      : `다시 오셨네요, ${result.me.number} 승객님. 엽전 ${result.me.coins}닢이 있습니다.`);
   } catch (err) {
     fail(err.message);
   }
@@ -828,138 +885,25 @@ async function submitTeacher(e) {
   e.preventDefault();
   const error = $('#teacherError');
   error.hidden = true;
+  const body = { password: $('#t-password').value, school: $('#t-school').value.trim(), name: $('#t-name').value.trim() };
+  const fail = (msg, field) => { error.textContent = msg; error.hidden = false; field?.focus(); };
+  if (!body.password) return fail('모임 비밀번호를 적어 주세요.', $('#t-password'));
+  if (body.school.length < 2) return fail('학교 이름을 적어 주세요. 예) 한빛중학교', $('#t-school'));
+  if (!body.name) return fail('선생님 이름을 적어 주세요.', $('#t-name'));
   try {
-    const result = await api('/api/session/teacher', { method: 'POST', body: { password: $('#t-password').value } });
-    finishLogin(result, '선생님 정기권으로 들어왔습니다.');
+    const result = await api('/api/session/teacher', { method: 'POST', body });
+    remember({ teacherSchool: result.me.school, teacherName: result.me.name });
+    finishLogin(result, result.created
+      ? `${result.me.school} ${result.me.name} 선생님, 처음 오셨네요. 환영합니다!`
+      : `${result.me.school} ${result.me.name} 선생님으로 들어왔습니다.`);
   } catch (err) {
-    error.textContent = err.message;
-    error.hidden = false;
-    $('#t-password').select();
-  }
-}
-
-/* ───────── 역무실: 반과 학생 ───────── */
-async function openOffice() {
-  if (!isTeacher()) return openLogin('teacher', '반 관리는 선생님만 할 수 있습니다.', openOffice);
-  $('#officeError').hidden = true;
-  $('#officeNotice').hidden = true;
-  if (!$('#officeDialog').open) $('#officeDialog').showModal();
-  await renderOffice();
-}
-
-function officeFail(err) {
-  $('#officeError').textContent = err.message;
-  $('#officeError').hidden = false;
-}
-
-// 두 번 눌러야 실행되는 버튼 (브라우저 확인창 대신)
-function twoStep(label, armedLabel, action) {
-  const btn = el('button', { class: 'btn btn-danger btn-small', type: 'button' }, label);
-  btn.addEventListener('click', async () => {
-    if (btn.dataset.armed !== 'true') {
-      btn.dataset.armed = 'true';
-      btn.textContent = armedLabel;
-      setTimeout(() => { btn.dataset.armed = ''; btn.textContent = label; }, 4000);
-      return;
-    }
-    btn.disabled = true;
-    await action();
-  });
-  return btn;
-}
-
-const openClasses = new Set();
-
-async function renderOffice() {
-  const list = $('#classList');
-  let classes;
-  try {
-    ({ classes } = await api('/api/classes'));
-  } catch (err) {
-    return officeFail(err);
-  }
-  if (!classes.length) {
-    list.replaceChildren(el('p', { class: 'class-empty' }, '아직 만든 반이 없습니다. 반을 만들면 학생들에게 나눠 줄 반 코드가 나옵니다.'));
-    return;
-  }
-  const date = (iso) => (iso ? new Date(iso).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }) : '');
-
-  list.replaceChildren(...classes.map((c) => {
-    const rows = c.students
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name, 'ko'))
-      .map((s) => el('tr', {},
-        el('td', {}, s.name),
-        el('td', { class: 'num' }, `${s.coins}닢`),
-        el('td', { class: 'num' }, `${s.clears}번`),
-        el('td', {}, date(s.lastSeen)),
-        el('td', {}, el('div', { class: 'row-actions' },
-          el('button', {
-            class: 'btn btn-quiet btn-small', type: 'button',
-            onclick: async () => {
-              try {
-                const { pin } = await api(`/api/classes/${c.code}/students/${s.id}/pin`, { method: 'POST' });
-                // 금방 사라지는 알림 대신, 선생님이 받아 적을 때까지 남겨 둔다
-                $('#officeNotice').replaceChildren(`${c.name} ${s.name} 학생의 새 비밀번호는 `, el('b', {}, pin), '입니다. 학생에게 알려 주세요.');
-                $('#officeNotice').hidden = false;
-                $('#officeNotice').scrollIntoView({ block: 'nearest' });
-              } catch (err) { officeFail(err); }
-            },
-          }, '비밀번호 새로 정하기'),
-          twoStep('지우기', '한 번 더 누르면 지웁니다', async () => {
-            try {
-              await api(`/api/classes/${c.code}/students/${s.id}`, { method: 'DELETE' });
-              toast(`${s.name} 학생을 지웠습니다.`);
-              renderOffice();
-            } catch (err) { officeFail(err); }
-          })))));
-
-    const details = el('details', { class: 'class-card', open: openClasses.has(c.code) },
-      el('summary', {},
-        el('span', { class: 'class-name' }, c.name),
-        el('span', { class: 'class-meta' }, `${c.teacher ? `${c.teacher} 선생님, ` : ''}학생 ${c.students.length}명`),
-        el('span', { class: 'class-code', 'aria-label': `반 코드 ${c.code.split('').join(' ')}` }, c.code)),
-      el('div', { class: 'class-body' },
-        c.students.length
-          ? el('div', { class: 'roster-scroll' }, el('table', { class: 'roster' },
-            el('thead', {}, el('tr', {},
-              el('th', {}, '이름'), el('th', {}, '엽전'), el('th', {}, '클리어'), el('th', {}, '마지막으로 탄 날'), el('th', {}, ''))),
-            el('tbody', {}, rows)))
-          : el('p', { class: 'class-empty' }, `아직 들어온 학생이 없습니다. 학생들에게 반 코드 ${c.code}를 알려 주세요.`),
-        el('div', { class: 'class-actions' },
-          el('p', {}, '학생이 비밀번호를 잊으면 ‘비밀번호 새로 정하기’로 새 숫자를 알려 주세요.'),
-          twoStep('반 지우기', '한 번 더 누르면 반과 학생 기록을 모두 지웁니다', async () => {
-            try {
-              await api(`/api/classes/${c.code}`, { method: 'DELETE' });
-              toast(`${c.name} 반을 지웠습니다.`);
-              renderOffice();
-            } catch (err) { officeFail(err); }
-          }))));
-    details.addEventListener('toggle', () => {
-      if (details.open) openClasses.add(c.code); else openClasses.delete(c.code);
-    });
-    return details;
-  }));
-}
-
-async function submitClass(e) {
-  e.preventDefault();
-  $('#officeError').hidden = true;
-  const name = $('#c-name').value.trim();
-  if (!name) return officeFail(new Error('반 이름을 적어 주세요.'));
-  try {
-    const { class: c } = await api('/api/classes', { method: 'POST', body: { name, teacher: $('#c-teacher').value.trim() } });
-    $('#c-name').value = '';
-    openClasses.add(c.code);
-    toast(`${c.name} 반을 만들었습니다. 반 코드는 ${c.code}입니다.`);
-    renderOffice();
-  } catch (err) {
-    officeFail(err);
+    fail(err.message, /비밀번호/.test(err.message) ? $('#t-password') : null);
   }
 }
 
 /* ───────── 시작 ───────── */
 function renderAll() {
+  renderSchoolFilter();
   renderBoard();
   renderLines();
   renderTickets();
@@ -1004,7 +948,6 @@ document.addEventListener('click', (e) => {
   if (action === 'delete') deleteGame();
   if (action === 'remove-cover') { state.cover = ''; $('#f-cover').value = ''; showCover(''); }
   if (action === 'close-login') { state.loginAfter = null; $('#loginDialog').close(); }
-  if (action === 'close-office') $('#officeDialog').close();
   if (action === 'close-arrival') $('#arrival').hidden = true;
   if (action === 'copy-signal') {
     navigator.clipboard?.writeText($('#signalCode').textContent)
@@ -1016,8 +959,7 @@ document.addEventListener('click', (e) => {
 document.querySelectorAll('[data-login-tab]').forEach((b) => b.addEventListener('click', () => switchLoginTab(b.dataset.loginTab)));
 $('#studentForm').addEventListener('submit', submitStudent);
 $('#teacherForm').addEventListener('submit', submitTeacher);
-$('#classForm').addEventListener('submit', submitClass);
-$('#s-code').addEventListener('input', (e) => { e.target.value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); });
+$('#schoolFilter').addEventListener('change', (e) => { state.school = e.target.value; renderTickets(); });
 
 // 탄 게임(iframe)에서 온 클리어 신호만 받는다
 window.addEventListener('message', (e) => {

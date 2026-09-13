@@ -23,7 +23,7 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const GAMES_DIR = path.join(DATA_DIR, 'games');
 const DB_FILE = path.join(DATA_DIR, 'games.json');
-const CLASSES_FILE = path.join(DATA_DIR, 'classes.json');
+const PASSENGERS_FILE = path.join(DATA_DIR, 'passengers.json'); // 선생님·학생·엽전
 const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
 const MAX_BODY = 4 * 1024 * 1024; // 게임 정보(JSON)와 표지 그림
 // HTML 게임 파일 한 개의 최대 크기. 파일은 디스크로 흘려 받고 GitHub 릴리스(파일당 2GB)에 보관하므로
@@ -92,7 +92,7 @@ async function prepareData() {
   if (store) {
     const files = await store.loadAll();
     for (const [rel, buf] of Object.entries(files)) {
-      if (!['games.json', 'classes.json'].includes(rel) && !/^games\/[a-f0-9]{12}\.html$/.test(rel)) continue;
+      if (!['games.json', 'passengers.json'].includes(rel) && !/^games\/[a-f0-9]{12}\.html$/.test(rel)) continue;
       fs.writeFileSync(path.join(DATA_DIR, rel), buf);
     }
     if (!files['games.json']) await store.save(seedGames(), '견본 게임 들여놓기');
@@ -105,10 +105,10 @@ async function prepareData() {
     migrateEras();
   }
   passengers = createPassengers({
-    file: CLASSES_FILE, hashPin, checkPin,
+    file: PASSENGERS_FILE,
     onChange: (message, now) => (now ? persist({}, message) : persistLater()),
   });
-  if (!passengers.teacherReady) console.warn('TEACHER_PASSWORD가 없어 교사로 들어올 수 없습니다.');
+  if (!passengers.teacherReady) console.warn('TEACHER_PASSWORD가 없어 선생님으로 들어올 수 없습니다. .env 파일이나 환경변수에 정해 주세요.');
 }
 
 let passengers = null;
@@ -128,7 +128,7 @@ async function restoreGameFiles() {
 async function persist(changes, message) {
   if (!store) return;
   changes['games.json'] = fs.readFileSync(DB_FILE, 'utf8');
-  if (fs.existsSync(CLASSES_FILE)) changes['classes.json'] = fs.readFileSync(CLASSES_FILE, 'utf8');
+  if (fs.existsSync(PASSENGERS_FILE)) changes['passengers.json'] = fs.readFileSync(PASSENGERS_FILE, 'utf8');
   try {
     await store.save(changes, message);
   } catch (e) {
@@ -173,16 +173,23 @@ function hashPin(pin, salt = crypto.randomBytes(16).toString('hex')) {
 }
 
 function checkPin(pin, stored) {
+  if (!stored || !pin) return false;
   const [salt, hash] = stored.split(':');
-  const candidate = crypto.scryptSync(String(pin || ''), salt, 32);
+  const candidate = crypto.scryptSync(String(pin), salt, 32);
   return crypto.timingSafeEqual(candidate, Buffer.from(hash, 'hex'));
 }
 
 // 비밀번호 해시는 절대 밖으로 내보내지 않는다
 function publicGame(g) {
   const { pinHash, ...rest } = g;
-  return { ...rest, ...fareOf(g) };
+  return { ...rest, ...fareOf(g), school: g.school || '', hasPin: Boolean(pinHash) };
 }
+
+// 게임은 올린 선생님이 바로 고칠 수 있고, 다른 선생님은 게임 비밀번호를 알아야 고칠 수 있다
+function canEditGame(game, teacher, pin) {
+  return (game.ownerId && game.ownerId === teacher.id) || checkPin(pin, game.pinHash);
+}
+const EDIT_DENIED = '이 게임을 올린 선생님이거나, 게임 비밀번호를 알아야 고칠 수 있습니다.';
 
 // 링크 게임은 클리어 신호를 보낼 수 없으므로 무료로 태운다
 function fareOf(g) {
@@ -360,7 +367,7 @@ setInterval(sweepUploads, 15 * 60 * 1000).unref();
 
 async function handleApi(req, res, url) {
   const parts = url.pathname.split('/').filter(Boolean); // ['api', area, ...]
-  if (parts[1] === 'session' || parts[1] === 'classes') return passengers.handle(req, res, parts, { readBody, send });
+  if (parts[1] === 'session') return passengers.handle(req, res, parts, { readBody, send });
   if (parts[1] === 'rides' && req.method === 'POST' && parts[3] === 'clear') {
     return send(res, 200, passengers.clearRide(req, parts[2]));
   }
@@ -381,10 +388,11 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === 'POST' && !id) {
-    passengers.requireTeacher(req);
+    const { teacher } = passengers.requireTeacher(req);
     const body = await readBody(req);
+    // 게임 비밀번호는 다른 선생님과 함께 고치고 싶을 때만 정한다
     const pin = String(body.pin || '');
-    if (pin.length < 4) return send(res, 400, { error: '수정용 비밀번호는 4자 이상으로 정해 주세요.' });
+    if (pin && pin.length < 4) return send(res, 400, { error: '게임 비밀번호는 4자 이상으로 정해 주세요.' });
     const data = validate(body, false);
     const now = new Date().toISOString();
     const game = {
@@ -403,7 +411,9 @@ async function handleApi(req, res, url) {
       plays: 0,
       createdAt: now,
       updatedAt: now,
-      pinHash: hashPin(pin),
+      ownerId: teacher.id,
+      school: teacher.school,
+      pinHash: pin ? hashPin(pin) : null,
     };
     const changes = data.kind === 'html' ? placeUpload(data.upload, game.id) : {};
     games.unshift(game);
@@ -425,18 +435,18 @@ async function handleApi(req, res, url) {
     return send(res, 200, { ...ride, plays: game.plays });
   }
 
-  // 게임 고치기·치우기는 선생님으로 들어온 뒤, 그 게임의 비밀번호까지 맞아야 한다
-  if (req.method !== 'GET') passengers.requireTeacher(req);
+  // 게임 고치기·내리기는 선생님으로 들어와야 하고, 올린 선생님이거나 게임 비밀번호를 알아야 한다
+  const teacher = req.method !== 'GET' ? passengers.requireTeacher(req).teacher : null;
 
   if (req.method === 'POST' && parts[3] === 'verify') {
     const body = await readBody(req);
-    if (!checkPin(body.pin, game.pinHash)) return send(res, 403, { error: '비밀번호가 맞지 않습니다.' });
+    if (!canEditGame(game, teacher, body.pin)) return send(res, 403, { error: body.pin ? '게임 비밀번호가 맞지 않습니다.' : EDIT_DENIED });
     return send(res, 200, { ok: true });
   }
 
   if (req.method === 'PUT') {
     const body = await readBody(req);
-    if (!checkPin(body.pin, game.pinHash)) return send(res, 403, { error: '비밀번호가 맞지 않습니다.' });
+    if (!canEditGame(game, teacher, body.pin)) return send(res, 403, { error: EDIT_DENIED });
     const data = validate(body, true);
     let changes = {};
     if (data.upload !== undefined) {
@@ -449,7 +459,7 @@ async function handleApi(req, res, url) {
       if (!fs.existsSync(gameFile(game.id))) return send(res, 400, { error: 'HTML 파일을 골라 주세요.' });
     }
     if (body.newPin) {
-      if (String(body.newPin).length < 4) return send(res, 400, { error: '새 비밀번호는 4자 이상으로 정해 주세요.' });
+      if (String(body.newPin).length < 4) return send(res, 400, { error: '새 게임 비밀번호는 4자 이상으로 정해 주세요.' });
       game.pinHash = hashPin(body.newPin);
     }
     Object.assign(game, data, { updatedAt: new Date().toISOString() });
@@ -460,7 +470,7 @@ async function handleApi(req, res, url) {
 
   if (req.method === 'DELETE') {
     const body = await readBody(req);
-    if (!checkPin(body.pin, game.pinHash)) return send(res, 403, { error: '비밀번호가 맞지 않습니다.' });
+    if (!canEditGame(game, teacher, body.pin)) return send(res, 403, { error: EDIT_DENIED });
     games.splice(idx, 1);
     writeDb(games);
     const changes = {};
@@ -487,7 +497,9 @@ function serveGame(res, id) {
 }
 
 function serveStatic(res, pathname) {
-  const rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+/, '');
+  let rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+|\/+$/g, '');
+  // /guide 처럼 확장자 없이 부르면 guide.html을 보여 준다
+  if (rel && !path.extname(rel) && fs.existsSync(path.join(PUBLIC_DIR, `${rel}.html`))) rel = `${rel}.html`;
   const file = path.normalize(path.join(PUBLIC_DIR, rel));
   if (!file.startsWith(PUBLIC_DIR) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
     return send(res, 404, '페이지를 찾을 수 없습니다.');

@@ -1,6 +1,7 @@
-// 승객(교사·학생) 로그인, 반, 엽전
-// - 교사: 모임 공용 비밀번호(TEACHER_PASSWORD)로 들어오고 엽전 없이 탄다.
-// - 학생: 반 코드 + 이름 + 4자리 비밀번호. 처음 들어오면 엽전을 받고, 차비를 내고 타며, 클리어하면 보상을 받는다.
+// 승객(교사·학생) 로그인과 엽전
+// - 교사: 모임 공용 비밀번호(TEACHER_PASSWORD) + 학교 이름 + 선생님 이름으로 들어오고 엽전 없이 탄다.
+//   여러 학교가 함께 쓰므로, 누가 어느 학교에서 게임을 올렸는지 구분하는 데 쓴다.
+// - 학생: 학교 이름 + 학번만 적고 들어온다. 처음이면 엽전을 받고, 차비를 내고 타며, 클리어하면 보상을 받는다.
 const fs = require('fs');
 const crypto = require('crypto');
 
@@ -9,24 +10,38 @@ const MIN_CLEAR_SECONDS = 10;          // 타자마자 보내는 클리어 신�
 const RIDE_TTL_MS = 3 * 60 * 60 * 1000; // 탑승 기록은 3시간 동안만 유효
 const TEACHER_SESSION_MS = 30 * 24 * 60 * 60 * 1000;
 const STUDENT_SESSION_MS = 24 * 60 * 60 * 1000;
-const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const httpError = (status, message) => Object.assign(new Error(message), { status });
 
-function createPassengers({ file, hashPin, checkPin, onChange }) {
-  const teacherPassword = process.env.TEACHER_PASSWORD
-    || (process.env.RENDER ? '' : 'teacher'); // 로컬에서만 기본값을 쓴다
+function createPassengers({ file, onChange }) {
+  // 비밀번호는 코드에 적지 않는다 (저장소가 공개). 로컬은 .env, 배포는 Render 환경변수에 둔다.
+  const teacherPassword = process.env.TEACHER_PASSWORD || '';
   const secret = process.env.SESSION_SECRET
     || crypto.createHash('sha256').update(`history-station:${teacherPassword}:${process.env.GITHUB_TOKEN || ''}`).digest('hex');
 
-  let classes = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : [];
-  const rides = new Map(); // rideId → { gameId, role, code, sid, fare, reward, startedAt, cleared }
+  // 파일 모양: { teachers: [...], students: [...] }
+  const stored = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : {};
+  const teachers = Array.isArray(stored.teachers) ? stored.teachers : [];
+  const students = Array.isArray(stored.students) ? stored.students : [];
+  const rides = new Map(); // rideId → { gameId, role, sid, fare, reward, startedAt, cleared }
 
   function save(message, { now = false } = {}) {
     const tmp = `${file}.tmp`;
-    fs.writeFileSync(tmp, JSON.stringify(classes, null, 2));
+    fs.writeFileSync(tmp, JSON.stringify({ teachers, students }, null, 2));
     fs.renameSync(tmp, file);
     return onChange(message, now);
+  }
+
+  const tidy = (v) => String(v || '').trim().replace(/\s+/g, ' ');
+  // 같은 학교를 '한빛중학교'와 '한빛중 학교'처럼 다르게 적어도 같게 본다
+  const schoolKey = (v) => tidy(v).replace(/\s/g, '');
+
+  // 띄어쓰기만 다르게 적었으면 이미 등록된 학교 표기로 맞춘다 (선생님 표기를 먼저 따른다)
+  function readSchool(value) {
+    const school = tidy(value);
+    if (school.length < 2 || school.length > 40) throw httpError(400, '학교 이름을 2~40자로 적어 주세요. 예) 한빛중학교');
+    const known = [...teachers, ...students].find((p) => schoolKey(p.school) === schoolKey(school));
+    return known ? known.school : school;
   }
 
   /* ───── 세션 토큰: 서명한 JSON ───── */
@@ -45,15 +60,20 @@ function createPassengers({ file, hashPin, checkPin, onChange }) {
     return payload.exp > Date.now() ? payload : null;
   }
 
-  // 요청에서 승객을 알아낸다: { role: 'teacher' } | { role: 'student', cls, student } | null
+  // 요청에서 승객을 알아낸다: { role: 'teacher', teacher } | { role: 'student', student } | null
   function identify(req) {
     const auth = req.headers.authorization || '';
     const payload = verify(auth.startsWith('Bearer ') ? auth.slice(7) : '');
     if (!payload) return null;
-    if (payload.role === 'teacher') return { role: 'teacher' };
-    const cls = classes.find((c) => c.code === payload.code);
-    const student = cls && cls.students.find((s) => s.id === payload.sid);
-    return student ? { role: 'student', cls, student } : null;
+    if (payload.role === 'teacher') {
+      const teacher = teachers.find((t) => t.id === payload.tid);
+      return teacher ? { role: 'teacher', teacher } : null;
+    }
+    if (payload.role === 'student') {
+      const student = students.find((s) => s.id === payload.sid);
+      return student ? { role: 'student', student } : null;
+    }
+    return null;
   }
 
   function requireTeacher(req) {
@@ -62,8 +82,8 @@ function createPassengers({ file, hashPin, checkPin, onChange }) {
     return who;
   }
 
-  /* ───── 비밀번호 시도 제한 ───── */
-  // 요청한 쪽 IP. Render 같은 프록시 뒤에서는 X-Forwarded-For의 맨 앞 값을 요청자가 꾸밀 수 있으므로,
+  /* ───── 모임 비밀번호 시도 제한 ───── */
+  // Render 같은 프록시 뒤에서는 X-Forwarded-For의 맨 앞 값을 요청자가 꾸밀 수 있으므로,
   // 프록시가 마지막에 덧붙인 맨 뒤 값을 쓴다.
   function clientIp(req) {
     const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
@@ -72,7 +92,6 @@ function createPassengers({ file, hashPin, checkPin, onChange }) {
   }
 
   const failures = new Map(); // key → { count, until }
-  const LIMITS = { teacher: 8, student: 8, studentIp: 30 };
   function checkThrottle(key, limit) {
     const f = failures.get(key);
     if (f && f.until > Date.now() && f.count >= limit) throw httpError(429, '비밀번호를 여러 번 틀렸습니다. 10분 뒤에 다시 시도해 주세요.');
@@ -84,28 +103,10 @@ function createPassengers({ file, hashPin, checkPin, onChange }) {
     if (failures.size > 5000) for (const [k, v] of failures) if (v.until < Date.now()) failures.delete(k);
   }
 
-  /* ───── 보여 줄 모양 ───── */
-  const publicStudent = (s) => ({
-    id: s.id, name: s.name, coins: s.coins,
-    clears: Object.values(s.clears || {}).reduce((a, b) => a + b, 0),
-    createdAt: s.createdAt, lastSeen: s.lastSeen,
-  });
-  const publicClass = (c) => ({
-    code: c.code, name: c.name, teacher: c.teacher, createdAt: c.createdAt,
-    students: c.students.map(publicStudent),
-  });
   function me(who) {
     if (!who) return { role: 'guest' };
-    if (who.role === 'teacher') return { role: 'teacher' };
-    return { role: 'student', name: who.student.name, coins: who.student.coins, className: who.cls.name, classCode: who.cls.code };
-  }
-
-  function newCode() {
-    let code;
-    do {
-      code = Array.from(crypto.randomBytes(6), (b) => CODE_CHARS[b % CODE_CHARS.length]).join('');
-    } while (classes.some((c) => c.code === code));
-    return code;
+    if (who.role === 'teacher') return { role: 'teacher', id: who.teacher.id, name: who.teacher.name, school: who.teacher.school };
+    return { role: 'student', school: who.student.school, number: who.student.number, coins: who.student.coins };
   }
 
   /* ───── 탑승과 클리어 ───── */
@@ -117,13 +118,12 @@ function createPassengers({ file, hashPin, checkPin, onChange }) {
       if (who.student.coins < fare) throw httpError(402, `엽전이 모자랍니다. 이 열차는 ${fare}닢, 가진 엽전은 ${who.student.coins}닢입니다.`);
       who.student.coins -= fare;
       who.student.lastSeen = new Date().toISOString();
-      if (fare > 0) save(`차비: ${who.student.name}`);
+      if (fare > 0) save(`차비: ${who.student.school} ${who.student.number}`);
     }
     for (const [id, r] of rides) if (Date.now() - r.startedAt > RIDE_TTL_MS) rides.delete(id);
     const rideId = crypto.randomBytes(12).toString('hex');
     rides.set(rideId, {
-      gameId: game.id, role: who ? who.role : 'guest',
-      code: who?.cls?.code, sid: who?.student?.id,
+      gameId: game.id, role: who ? who.role : 'guest', sid: who?.student?.id,
       fare, reward: game.reward || 0, startedAt: Date.now(), cleared: false,
     });
     return { rideId, fare, reward: game.reward || 0, me: me(who) };
@@ -142,126 +142,77 @@ function createPassengers({ file, hashPin, checkPin, onChange }) {
     who.student.clears = who.student.clears || {};
     who.student.clears[ride.gameId] = (who.student.clears[ride.gameId] || 0) + 1;
     who.student.lastSeen = new Date().toISOString();
-    save(`클리어 보상: ${who.student.name}`);
+    save(`클리어 보상: ${who.student.school} ${who.student.number}`);
     return { reward: ride.reward, me: me(who) };
   }
 
   /* ───── 라우트 ───── */
   async function handle(req, res, parts, { readBody, send }) {
-    const [, area, a, b, c, d] = parts; // api, area, ...
+    const [, area, a] = parts; // api, area, ...
+    if (area !== 'session') throw httpError(404, '없는 주소입니다.');
 
-    if (area === 'session') {
-      if (req.method === 'GET' && !a) return send(res, 200, me(identify(req)));
+    if (req.method === 'GET' && !a) return send(res, 200, me(identify(req)));
 
-      if (req.method === 'POST' && a === 'teacher') {
-        const key = `teacher:${clientIp(req)}`;
-        checkThrottle(key, LIMITS.teacher);
-        if (!teacherPassword) throw httpError(503, '교사 비밀번호가 아직 설정되지 않았습니다. 관리자가 TEACHER_PASSWORD를 정해야 합니다.');
-        const body = await readBody(req);
-        const given = crypto.createHash('sha256').update(String(body.password || '')).digest();
-        const want = crypto.createHash('sha256').update(teacherPassword).digest();
-        if (!crypto.timingSafeEqual(given, want)) {
-          recordFailure(key);
-          throw httpError(403, '교사 비밀번호가 맞지 않습니다.');
-        }
-        failures.delete(key);
-        return send(res, 200, { token: sign({ role: 'teacher', exp: Date.now() + TEACHER_SESSION_MS }), me: { role: 'teacher' } });
+    if (req.method === 'POST' && a === 'teacher') {
+      const key = `teacher:${clientIp(req)}`;
+      checkThrottle(key, 8);
+      if (!teacherPassword) throw httpError(503, '모임 비밀번호가 아직 설정되지 않았습니다. 관리자가 TEACHER_PASSWORD를 정해야 합니다.');
+      const body = await readBody(req);
+      const given = crypto.createHash('sha256').update(String(body.password || '')).digest();
+      const want = crypto.createHash('sha256').update(teacherPassword).digest();
+      if (!crypto.timingSafeEqual(given, want)) {
+        recordFailure(key);
+        throw httpError(403, '모임 비밀번호가 맞지 않습니다.');
       }
+      failures.delete(key);
 
-      if (req.method === 'POST' && a === 'student') {
-        const body = await readBody(req);
-        const code = String(body.classCode || '').trim().toUpperCase();
-        const name = String(body.name || '').trim().replace(/\s+/g, ' ');
-        const pin = String(body.pin || '');
-        const cls = classes.find((x) => x.code === code);
-        if (!cls) throw httpError(404, '그 반 코드를 찾을 수 없습니다. 선생님께 받은 코드를 다시 확인해 주세요.');
-        if (!name || name.length > 20) throw httpError(400, '이름은 1~20자로 적어 주세요.');
-        if (!/^\d{4}$/.test(pin)) throw httpError(400, '비밀번호는 숫자 4자리로 적어 주세요.');
+      const school = readSchool(body.school);
+      const name = tidy(body.name);
+      if (!name || name.length > 20) throw httpError(400, '선생님 이름을 1~20자로 적어 주세요.');
 
-        let student = cls.students.find((s) => s.name === name);
-        let created = false;
-        if (student) {
-          // 4자리 비밀번호는 경우의 수가 적으므로, 학생 한 명과 IP 모두에 시도 횟수를 건다
-          const ipKey = `student-ip:${clientIp(req)}`;
-          const accountKey = `student:${cls.code}:${student.id}`;
-          checkThrottle(ipKey, LIMITS.studentIp);
-          checkThrottle(accountKey, LIMITS.student);
-          if (!checkPin(pin, student.pinHash)) {
-            recordFailure(ipKey);
-            recordFailure(accountKey);
-            throw httpError(403, '비밀번호가 맞지 않습니다. 잊었다면 선생님께 새로 정해 달라고 하세요.');
-          }
-          failures.delete(accountKey);
-        } else {
-          student = {
-            id: crypto.randomBytes(6).toString('hex'), name, pinHash: hashPin(pin),
-            coins: STARTING_COINS, clears: {}, createdAt: new Date().toISOString(),
-          };
-          cls.students.push(student);
-          created = true;
-        }
-        student.lastSeen = new Date().toISOString();
-        await save(created ? `학생 등록: ${cls.name} ${name}` : `학생 입장: ${name}`, { now: created });
-        const who = { role: 'student', cls, student };
-        return send(res, 200, {
-          token: sign({ role: 'student', code: cls.code, sid: student.id, exp: Date.now() + STUDENT_SESSION_MS }),
-          me: me(who), created, startingCoins: STARTING_COINS,
-        });
+      // 같은 학교 + 같은 이름이면 같은 선생님으로 본다 (처음이면 새로 등록)
+      let teacher = teachers.find((t) => schoolKey(t.school) === schoolKey(school) && t.name === name);
+      const created = !teacher;
+      if (!teacher) {
+        teacher = { id: crypto.randomBytes(6).toString('hex'), school, name, createdAt: new Date().toISOString() };
+        teachers.push(teacher);
       }
+      teacher.lastSeen = new Date().toISOString();
+      await save(created ? `선생님 등록: ${school} ${name}` : `선생님 입장: ${name}`, { now: created });
+      return send(res, 200, {
+        token: sign({ role: 'teacher', tid: teacher.id, exp: Date.now() + TEACHER_SESSION_MS }),
+        me: me({ role: 'teacher', teacher }), created,
+      });
     }
 
-    if (area === 'classes') {
-      requireTeacher(req);
-      if (req.method === 'GET' && !a) return send(res, 200, { classes: classes.map(publicClass) });
+    if (req.method === 'POST' && a === 'student') {
+      const body = await readBody(req);
+      const school = readSchool(body.school);
+      const number = String(body.number || '').replace(/\s/g, '');
+      if (!/^[0-9][0-9-]{0,11}$/.test(number)) throw httpError(400, '학번은 숫자로 적어 주세요. 예) 20312');
 
-      if (req.method === 'POST' && !a) {
-        const body = await readBody(req);
-        const name = String(body.name || '').trim();
-        const teacher = String(body.teacher || '').trim();
-        if (!name || name.length > 30) throw httpError(400, '반 이름을 1~30자로 적어 주세요.');
-        if (teacher.length > 30) throw httpError(400, '담당 선생님 이름은 30자 이하로 적어 주세요.');
-        const cls = { code: newCode(), name, teacher, createdAt: new Date().toISOString(), students: [] };
-        classes.unshift(cls);
-        await save(`반 만들기: ${name}`, { now: true });
-        return send(res, 201, { class: publicClass(cls) });
+      // 같은 학교 + 같은 학번이면 같은 학생으로 본다 (처음이면 엽전을 주고 새로 등록)
+      let student = students.find((s) => schoolKey(s.school) === schoolKey(school) && s.number === number);
+      const created = !student;
+      if (!student) {
+        student = {
+          id: crypto.randomBytes(6).toString('hex'), school, number,
+          coins: STARTING_COINS, clears: {}, createdAt: new Date().toISOString(),
+        };
+        students.push(student);
       }
-
-      const cls = classes.find((x) => x.code === a);
-      if (!cls) throw httpError(404, '그 반을 찾을 수 없습니다.');
-
-      if (req.method === 'DELETE' && !b) {
-        classes = classes.filter((x) => x !== cls);
-        await save(`반 지우기: ${cls.name}`, { now: true });
-        return send(res, 200, { ok: true });
-      }
-
-      if (b === 'students') {
-        const student = cls.students.find((s) => s.id === c);
-        if (!student) throw httpError(404, '그 학생을 찾을 수 없습니다.');
-        if (req.method === 'POST' && d === 'pin') {
-          // 새 비밀번호는 서버가 안전한 난수로 만들어 한 번만 돌려준다
-          const pin = String(crypto.randomInt(0, 10000)).padStart(4, '0');
-          student.pinHash = hashPin(pin);
-          failures.delete(`student:${cls.code}:${student.id}`); // 잠긴 학생도 새 비밀번호로 바로 들어오게
-          await save(`학생 비밀번호 새로 정하기: ${student.name}`, { now: true });
-          return send(res, 200, { ok: true, pin });
-        }
-        if (req.method === 'DELETE' && !d) {
-          cls.students = cls.students.filter((s) => s !== student);
-          await save(`학생 지우기: ${student.name}`, { now: true });
-          return send(res, 200, { ok: true });
-        }
-      }
+      student.lastSeen = new Date().toISOString();
+      await save(created ? `학생 등록: ${school} ${number}` : `학생 입장: ${school} ${number}`, { now: created });
+      return send(res, 200, {
+        token: sign({ role: 'student', sid: student.id, exp: Date.now() + STUDENT_SESSION_MS }),
+        me: me({ role: 'student', student }), created, startingCoins: STARTING_COINS,
+      });
     }
 
     throw httpError(404, '없는 주소입니다.');
   }
 
-  function replaceData(json) {
-    classes = JSON.parse(json);
-  }
-
-  return { handle, identify, requireTeacher, startRide, clearRide, replaceData, teacherReady: Boolean(teacherPassword) };
+  return { handle, identify, requireTeacher, startRide, clearRide, teacherReady: Boolean(teacherPassword) };
 }
 
 module.exports = { createPassengers, STARTING_COINS };

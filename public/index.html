@@ -23,6 +23,7 @@
         <img src="ticket.svg" alt="" width="30" height="30">
         <span>시간여행 <b>역사</b></span>
       </a>
+      <a class="guide-link" href="/guide">사용 안내</a>
       <label class="search">
         <span class="visually-hidden">게임 이름이나 선생님 이름으로 찾기</span>
         <input id="search" type="search" placeholder="게임 이름, 선생님 이름으로 찾기" autocomplete="off">
@@ -86,12 +87,16 @@
     <div class="platform-head">
       <h2 id="platformTitle">모든 게임</h2>
       <p class="platform-status" id="platformStatus" aria-live="polite">게임 목록을 불러오는 중입니다.</p>
+      <label class="school-filter">
+        <span>학교</span>
+        <select id="schoolFilter"><option value="">모든 학교</option></select>
+      </label>
     </div>
     <div class="tickets" id="tickets"></div>
   </main>
 
   <footer class="footer">
-    <p>시간여행 역사는 ‘미디어와 역사수업 실천모임’의 공동 작업 공간입니다. 게임을 올릴 때 정한 비밀번호로 언제든 고치거나 내릴 수 있습니다.</p>
+    <p>시간여행 역사는 ‘미디어와 역사수업 실천모임’ 여러 학교 선생님들의 공동 작업 공간입니다. 처음이라면 <a href="/guide">선생님용 사용 안내</a>를 먼저 읽어 주세요.</p>
   </footer>
 
   <!-- 개찰과 탑승 -->
@@ -163,6 +168,7 @@
           <label for="f-title">게임 이름</label>
           <input id="f-title" name="title" maxlength="40" required placeholder="예) 조선 왕 순서 대작전">
         </div>
+        <p class="school-note" id="schoolNote"></p>
         <div class="field-row">
           <div class="field">
             <label for="f-author">만든 선생님</label>
@@ -238,12 +244,12 @@
         </div>
 
         <div class="field pin-field">
-          <label for="f-pin">수정용 비밀번호</label>
-          <input id="f-pin" name="pin" type="password" minlength="4" autocomplete="new-password" placeholder="4자 이상">
-          <p class="hint">나중에 이 게임을 고치거나 내릴 때 필요합니다. 잊지 않게 적어 두세요.</p>
+          <label for="f-pin">게임 비밀번호 <small>(선택)</small></label>
+          <input id="f-pin" name="pin" type="password" minlength="4" autocomplete="new-password" placeholder="함께 고칠 선생님이 있을 때만, 4자 이상">
+          <p class="hint">내가 올린 게임은 비밀번호 없이 언제든 고칠 수 있습니다. 다른 선생님(다른 학교 포함)과 함께 고치고 싶을 때만 정해서 알려 주세요.</p>
         </div>
         <div class="field" id="newPinField" hidden>
-          <label for="f-newPin">비밀번호 바꾸기 <small>(선택)</small></label>
+          <label for="f-newPin">게임 비밀번호 새로 정하기 <small>(선택)</small></label>
           <input id="f-newPin" name="newPin" type="password" minlength="4" autocomplete="new-password" placeholder="바꿀 때만 적어 주세요">
         </div>
 
@@ -269,7 +275,7 @@
       <div class="sheet-body">
         <p class="pin-lead" id="pinLead"></p>
         <div class="field">
-          <label for="p-pin">게임을 올릴 때 정한 비밀번호</label>
+          <label for="p-pin">게임을 올린 선생님이 정한 게임 비밀번호</label>
           <input id="p-pin" type="password" autocomplete="current-password" required>
         </div>
         <p class="form-error" id="pinError" role="alert" hidden></p>
@@ -298,17 +304,13 @@
       <form id="studentForm" role="tabpanel" aria-labelledby="tabStudent" novalidate>
         <div class="sheet-body">
           <div class="field">
-            <label for="s-code">반 코드</label>
-            <input id="s-code" class="code-input" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="선생님께 받은 6자리">
+            <label for="s-school">학교 이름</label>
+            <input id="s-school" maxlength="40" autocomplete="organization" placeholder="예) 한빛중학교">
           </div>
           <div class="field">
-            <label for="s-name">이름</label>
-            <input id="s-name" maxlength="20" autocomplete="off" placeholder="예) 12번 김철수">
-          </div>
-          <div class="field">
-            <label for="s-pin">비밀번호 <small>(숫자 4자리)</small></label>
-            <input id="s-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off">
-            <p class="hint">처음 들어오면 적은 비밀번호로 승객 카드가 만들어지고 엽전 3닢을 받습니다.</p>
+            <label for="s-number">학번</label>
+            <input id="s-number" class="code-input" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="예) 20312">
+            <p class="hint">처음 들어오면 엽전 3닢을 받습니다. 다음에도 같은 학교 이름과 학번으로 들어오면 모은 엽전이 그대로 있어요. 친구 학번으로 들어가지 마세요.</p>
           </div>
           <p class="form-error" id="studentError" role="alert" hidden></p>
         </div>
@@ -321,10 +323,21 @@
       <form id="teacherForm" role="tabpanel" aria-labelledby="tabTeacher" novalidate hidden>
         <div class="sheet-body">
           <div class="field">
-            <label for="t-password">교사 비밀번호</label>
+            <label for="t-password">모임 비밀번호</label>
             <input id="t-password" type="password" autocomplete="current-password">
-            <p class="hint">‘미디어와 역사수업 실천모임’ 선생님들이 함께 쓰는 비밀번호입니다. 선생님은 엽전 없이 타고, 게임 올리기와 반 관리를 할 수 있습니다.</p>
+            <p class="hint">‘미디어와 역사수업 실천모임’ 선생님들이 함께 쓰는 비밀번호입니다.</p>
           </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="t-school">학교 이름</label>
+              <input id="t-school" maxlength="40" autocomplete="organization" placeholder="예) 한빛중학교">
+            </div>
+            <div class="field">
+              <label for="t-name">선생님 이름</label>
+              <input id="t-name" maxlength="20" autocomplete="name" placeholder="예) 김역사">
+            </div>
+          </div>
+          <p class="hint">처음 입장하면 이 학교와 이름으로 등록됩니다. 다음에도 <b>같은 학교 이름과 선생님 이름</b>으로 들어와야 내 반과 내 게임을 관리할 수 있습니다.</p>
           <p class="form-error" id="teacherError" role="alert" hidden></p>
         </div>
         <footer class="sheet-foot">
@@ -335,31 +348,6 @@
     </div>
   </dialog>
 
-  <!-- 역무실: 반 만들기와 학생 엽전 현황 -->
-  <dialog class="sheet sheet-wide" id="officeDialog" aria-labelledby="officeTitle">
-    <div class="sheet-wrap">
-      <header class="sheet-head">
-        <h2 id="officeTitle">반 관리</h2>
-        <button class="sheet-close" type="button" data-action="close-office" aria-label="닫기">✕</button>
-      </header>
-      <div class="sheet-body">
-        <form class="class-new" id="classForm" novalidate>
-          <div class="field">
-            <label for="c-name">새 반 이름</label>
-            <input id="c-name" maxlength="30" placeholder="예) 2학년 3반 한국사">
-          </div>
-          <div class="field">
-            <label for="c-teacher">담당 선생님</label>
-            <input id="c-teacher" maxlength="30" placeholder="예) 김역사">
-          </div>
-          <button class="btn btn-go" type="submit">반 만들기</button>
-        </form>
-        <p class="form-error" id="officeError" role="alert" hidden></p>
-        <p class="office-notice" id="officeNotice" role="status" hidden></p>
-        <div class="class-list" id="classList"></div>
-      </div>
-    </div>
-  </dialog>
 
   <div class="toast" id="toast" role="status" hidden></div>
 
