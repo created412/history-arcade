@@ -14,67 +14,84 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <a class="skip" href="#platform">열차 목록으로 건너뛰기</a>
+  <a class="skip" href="#platform">게임 목록으로 건너뛰기</a>
 
-  <!-- 승객 카드: 누구로 들어왔는지, 엽전이 몇 닢인지 -->
-  <div class="passenger-bar">
-    <div class="passenger" id="passenger" aria-live="polite"></div>
-  </div>
-
-  <header class="concourse">
-    <!-- 역명판: 이전 역 ← 지금 역 → 다음 역 -->
-    <div class="nameplate">
-      <p class="nameplate-latin cover-text" lang="en">media&amp;history</p>
-      <div class="nameplate-board">
-        <span class="nameplate-prev" aria-hidden="true">← 오늘</span>
-        <h1 class="nameplate-name">
-          <span class="cover-text">역사</span>
-          <small class="nameplate-hanja">歷史 / 驛舍</small>
-        </h1>
-        <span class="nameplate-next" aria-hidden="true">옛날 →</span>
-      </div>
-      <p class="nameplate-group cover-text">미디어와 역사수업 실천모임</p>
-    </div>
-
-    <section class="departures" aria-labelledby="departuresTitle">
-      <div class="departures-head">
-        <h2 id="departuresTitle">출발 안내</h2>
-        <p class="departures-clock" id="clock" aria-hidden="true"></p>
-      </div>
-      <div class="board-scroll">
-        <table class="board">
-          <thead>
-            <tr><th scope="col">열차</th><th scope="col">행선지</th><th scope="col">기관사</th><th scope="col">승차</th></tr>
-          </thead>
-          <tbody id="board"></tbody>
-        </table>
-      </div>
-      <div class="departures-foot">
-        <p>시간여행 역사는 선생님들이 만든 역사 게임을 시대별 노선에 태워 보내는 정거장입니다.</p>
-        <button class="btn btn-primary" type="button" data-action="new">새 열차 편성하기</button>
-      </div>
-    </section>
-  </header>
-
-  <nav class="route-map" aria-labelledby="routeTitle">
-    <div class="route-head">
-      <h2 id="routeTitle">노선도</h2>
-      <button class="route-all" type="button" id="routeAll" aria-pressed="true">모든 열차 보기</button>
+  <!-- 늘 보이는 윗줄: 로고, 찾기, 입장·엽전 -->
+  <header class="topnav">
+    <div class="topnav-inner">
+      <a class="brand" href="#top" aria-label="시간여행 역사 처음으로">
+        <img src="ticket.svg" alt="" width="30" height="30">
+        <span>시간여행 <b>역사</b></span>
+      </a>
       <label class="search">
         <span class="visually-hidden">게임 이름이나 선생님 이름으로 찾기</span>
-        <input id="search" type="search" placeholder="게임·선생님 이름으로 찾기" autocomplete="off">
+        <input id="search" type="search" placeholder="게임 이름, 선생님 이름으로 찾기" autocomplete="off">
       </label>
+      <div class="passenger" id="passenger" aria-live="polite"></div>
     </div>
-    <div class="lines" id="lines"></div>
+  </header>
+
+  <!-- 첫 화면: 밤 기차역 -->
+  <section class="hero" id="top" aria-labelledby="heroTitle">
+    <div class="hero-lamps" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="hero-inner">
+      <div class="hero-copy">
+        <p class="hero-latin cover-text" lang="en">media&amp;history</p>
+        <h1 class="hero-title" id="heroTitle">
+          <span class="shimmer">역사</span>
+          <small>歷史 / 驛舍</small>
+        </h1>
+        <p class="hero-lead">선생님들이 만든 <b>역사 게임 열차</b>를 타고 시대로 떠나요.<br>게임을 끝까지 깨면 <b>엽전</b>을 받아 다음 열차를 탈 수 있어요.</p>
+        <div class="hero-actions" id="heroActions"></div>
+        <p class="hero-group cover-text">미디어와 역사수업 실천모임</p>
+      </div>
+
+      <section class="departures" aria-labelledby="departuresTitle">
+        <div class="departures-head">
+          <h2 id="departuresTitle"><span class="live-dot" aria-hidden="true"></span>지금 출발하는 게임</h2>
+          <p class="departures-clock" id="clock" aria-hidden="true"></p>
+        </div>
+        <div class="board-scroll">
+          <table class="board">
+            <thead>
+              <tr><th scope="col">게임</th><th scope="col">시대</th><th scope="col">만든 선생님</th><th scope="col">차비</th></tr>
+            </thead>
+            <tbody id="board"></tbody>
+          </table>
+        </div>
+        <p class="departures-foot">줄을 누르면 바로 탈 수 있어요.</p>
+      </section>
+    </div>
+
+    <!-- 선로 위를 달리는 열차 -->
+    <div class="hero-track" aria-hidden="true">
+      <div class="train">
+        <span class="car car-korea"><i></i><i></i><i></i></span>
+        <span class="car car-east"><i></i><i></i><i></i></span>
+        <span class="car car-west"><i></i><i></i><i></i></span>
+        <span class="engine"><i></i><b></b></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 처음 온 사람을 위한 순서 안내 -->
+  <ol class="steps" id="steps"></ol>
+
+  <nav class="lines-nav" id="linesNav" aria-label="시대 고르기">
+    <div class="line-tabs" id="lineTabs"></div>
+    <div class="station-rail" id="stationRail"></div>
   </nav>
 
   <main id="platform" class="platform">
-    <p class="platform-status" id="platformStatus" aria-live="polite">열차 시간표를 불러오는 중입니다.</p>
+    <div class="platform-head">
+      <h2 id="platformTitle">모든 게임</h2>
+      <p class="platform-status" id="platformStatus" aria-live="polite">게임 목록을 불러오는 중입니다.</p>
+    </div>
     <div class="tickets" id="tickets"></div>
   </main>
 
   <footer class="footer">
-    <p>시간여행 역사는 ‘미디어와 역사수업 실천모임’의 공동 작업 공간입니다. 게임을 올릴 때 정한 비밀번호로 언제든 고치거나 운행을 끝낼 수 있습니다.</p>
+    <p>시간여행 역사는 ‘미디어와 역사수업 실천모임’의 공동 작업 공간입니다. 게임을 올릴 때 정한 비밀번호로 언제든 고치거나 내릴 수 있습니다.</p>
   </footer>
 
   <!-- 개찰과 탑승 -->
@@ -100,7 +117,7 @@
           </div>
           <div class="big-ticket-body">
             <div class="big-ticket-route">
-              <div><small>출발</small><b>오늘</b></div>
+              <div><small>출발</small><b>지금</b></div>
               <span class="big-ticket-arrow" aria-hidden="true">▶</span>
               <div><small>도착</small><b id="bigTicketStation"></b></div>
             </div>
@@ -119,7 +136,7 @@
           </div>
           <p class="farebox-text" id="fareText"></p>
         </div>
-        <button class="btn btn-primary btn-gate" type="button" id="gateButton">개찰하고 타기</button>
+        <button class="btn btn-primary btn-gate" type="button" id="gateButton">게임 시작</button>
         <p class="gate-note" id="gateNote" hidden></p>
       </div>
       <div class="arrival" id="arrival" role="status" hidden>
@@ -137,7 +154,7 @@
   <dialog class="sheet" id="sheet" aria-labelledby="sheetTitle">
     <form id="gameForm" method="dialog" novalidate>
       <header class="sheet-head">
-        <h2 id="sheetTitle">새 열차 편성하기</h2>
+        <h2 id="sheetTitle">게임 올리기</h2>
         <button class="sheet-close" type="button" data-action="close-sheet" aria-label="닫기">✕</button>
       </header>
 
@@ -222,7 +239,7 @@
         <div class="field pin-field">
           <label for="f-pin">수정용 비밀번호</label>
           <input id="f-pin" name="pin" type="password" minlength="4" autocomplete="new-password" placeholder="4자 이상">
-          <p class="hint">나중에 이 게임을 고치거나 운행을 끝낼 때 필요합니다. 잊지 않게 적어 두세요.</p>
+          <p class="hint">나중에 이 게임을 고치거나 내릴 때 필요합니다. 잊지 않게 적어 두세요.</p>
         </div>
         <div class="field" id="newPinField" hidden>
           <label for="f-newPin">비밀번호 바꾸기 <small>(선택)</small></label>
@@ -233,10 +250,10 @@
       </div>
 
       <footer class="sheet-foot">
-        <button class="btn btn-danger" type="button" id="deleteButton" data-action="delete" hidden>운행 끝내기</button>
+        <button class="btn btn-danger" type="button" id="deleteButton" data-action="delete" hidden>게임 내리기</button>
         <span class="spacer"></span>
         <button class="btn btn-quiet" type="button" data-action="close-sheet">그만두기</button>
-        <button class="btn btn-go" type="submit" id="submitButton">열차 편성하기</button>
+        <button class="btn btn-go" type="submit" id="submitButton">게임 올리기</button>
       </footer>
     </form>
   </dialog>
@@ -268,7 +285,7 @@
   <dialog class="sheet sheet-small" id="loginDialog" aria-labelledby="loginTitle">
     <div class="sheet-wrap">
       <header class="sheet-head">
-        <h2 id="loginTitle">정거장에 들어오기</h2>
+        <h2 id="loginTitle">입장하기</h2>
         <button class="sheet-close" type="button" data-action="close-login" aria-label="닫기">✕</button>
       </header>
       <div class="login-tabs" role="tablist">
@@ -305,7 +322,7 @@
           <div class="field">
             <label for="t-password">교사 비밀번호</label>
             <input id="t-password" type="password" autocomplete="current-password">
-            <p class="hint">‘미디어와 역사수업 실천모임’ 선생님들이 함께 쓰는 비밀번호입니다. 선생님은 엽전 없이 타고, 열차 편성과 반 관리를 할 수 있습니다.</p>
+            <p class="hint">‘미디어와 역사수업 실천모임’ 선생님들이 함께 쓰는 비밀번호입니다. 선생님은 엽전 없이 타고, 게임 올리기와 반 관리를 할 수 있습니다.</p>
           </div>
           <p class="form-error" id="teacherError" role="alert" hidden></p>
         </div>
@@ -321,7 +338,7 @@
   <dialog class="sheet sheet-wide" id="officeDialog" aria-labelledby="officeTitle">
     <div class="sheet-wrap">
       <header class="sheet-head">
-        <h2 id="officeTitle">역무실</h2>
+        <h2 id="officeTitle">반 관리</h2>
         <button class="sheet-close" type="button" data-action="close-office" aria-label="닫기">✕</button>
       </header>
       <div class="sheet-body">

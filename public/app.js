@@ -85,13 +85,6 @@ function visibleGames() {
     matchesFilter(g) && (!q || `${g.title} ${g.author} ${g.summary}`.toLowerCase().includes(q)));
 }
 
-function setFilter(line, era) {
-  const same = state.filter.line === line && state.filter.era === era;
-  state.filter = same ? { line: null, era: null } : { line, era };
-  renderLines();
-  renderTickets();
-}
-
 /* ───────── 출발 안내판 ───────── */
 function renderBoard() {
   const body = $('#board');
@@ -100,17 +93,17 @@ function renderBoard() {
     .slice(0, 6);
   body.replaceChildren();
   if (!latest.length) {
-    body.append(el('tr', { class: 'board-empty' }, el('td', { colSpan: 4 }, '아직 출발하는 열차가 없습니다. 첫 열차를 편성해 주세요.')));
+    body.append(el('tr', { class: 'board-empty' }, el('td', { colSpan: 4 }, '아직 올라온 게임이 없습니다. 선생님이 첫 게임을 올려 주세요.')));
     return;
   }
   latest.forEach((g, i) => {
     const p = place(g.era);
     const cell = (...content) => el('td', {}, el('button', { type: 'button', tabIndex: -1, onclick: () => openRide(g) }, ...content));
     const row = el('tr', { class: 'board-row', style: `--i:${i}` },
-      el('td', {}, el('button', { type: 'button', class: 'board-title', onclick: () => openRide(g), 'aria-label': `${g.title}, ${p.label}행 타기` }, g.title)),
+      el('td', {}, el('button', { type: 'button', class: 'board-title', onclick: () => openRide(g), 'aria-label': `${g.title} 타기` }, g.title)),
       cell(el('span', { class: 'board-dest', style: `--line:${lineColor(g.era)}` }, el('i'), p.station)),
       cell(`${g.author}`),
-      cell(`${g.plays || 0}회`));
+      cell(g.fare ? `${g.fare}닢` : '무료'));
     body.append(row);
   });
 }
@@ -120,94 +113,188 @@ function tickClock() {
   $('#clock').textContent = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
-/* ───────── 노선도 ───────── */
-function renderLines() {
-  const wrap = $('#lines');
-  const count = (fn) => state.games.filter(fn).length;
-  const { line: fLine, era: fEra } = state.filter;
-  $('#routeAll').setAttribute('aria-pressed', String(!fLine && !fEra));
-
-  const station = (era, name) => {
-    const n = count((g) => g.era === era);
-    const btn = el('button', { type: 'button', class: `station${n ? '' : ' is-empty'}`, onclick: () => setFilter(null, era), 'aria-label': `${place(era).label}, 열차 ${n}편` },
-      el('span', { class: 'station-dot', 'aria-hidden': 'true' }, n ? String(n) : ''),
-      el('span', { class: 'station-name' }, name));
-    btn.setAttribute('aria-pressed', String(fEra === era));
-    return el('li', {}, btn);
-  };
-
-  const rows = state.lines.map((l) => {
-    const n = count((g) => place(g.era).lineId === l.id);
-    const name = el('button', { type: 'button', class: 'line-name', onclick: () => setFilter(l.id, null) },
-      `${l.name}선`, el('small', {}, `${n}편`));
-    name.setAttribute('aria-pressed', String(fLine === l.id && !fEra));
-    return el('div', { class: 'line', style: `--line:${LINE_COLORS[l.id]}` },
-      name,
-      el('ul', { class: 'stations' }, l.stations.map((st) => station(`${l.name}/${st}`, st))));
-  });
-
-  const transfer = el('div', { class: 'line line-transfer', style: `--line:${LINE_COLORS.transfer}` },
-    el('span', { class: 'line-name', style: 'cursor:default' }, '환승역'),
-    el('ul', { class: 'stations' }, station(state.transfer, `${state.transfer} (여러 노선을 오가는 열차)`)));
-
-  wrap.replaceChildren(...rows, transfer);
+/* ───────── 시대 고르기: 노선 탭 + 역 ───────── */
+function lineTab(id, label, count, selected, onclick) {
+  const btn = el('button', { type: 'button', class: 'line-tab', style: `--line:${LINE_COLORS[id] || 'var(--cream)'}`, onclick },
+    el('span', { class: 'line-tab-dot', 'aria-hidden': 'true' }),
+    label,
+    el('small', {}, String(count)));
+  btn.setAttribute('aria-pressed', String(selected));
+  return btn;
 }
 
-/* ───────── 승강장 ───────── */
+function renderLines() {
+  const count = (fn) => state.games.filter(fn).length;
+  const { line: fLine, era: fEra } = state.filter;
+  const activeLine = fEra ? place(fEra).lineId : fLine;
+
+  const tabs = [
+    lineTab('all', '전체', state.games.length, !activeLine, () => { state.filter = { line: null, era: null }; renderLines(); renderTickets(); }),
+    ...state.lines.map((l) => lineTab(l.id, l.name, count((g) => place(g.era).lineId === l.id), activeLine === l.id,
+      () => { state.filter = { line: l.id, era: null }; renderLines(); renderTickets(); })),
+    lineTab('transfer', state.transfer, count((g) => g.era === state.transfer), activeLine === 'transfer',
+      () => { state.filter = { line: 'transfer', era: null }; renderLines(); renderTickets(); }),
+  ];
+  $('#lineTabs').replaceChildren(...tabs);
+
+  // 노선을 고르면 그 노선의 역(시대)이 선로 위에 펼쳐진다
+  const rail = $('#stationRail');
+  const line = state.lines.find((l) => l.id === activeLine);
+  if (!line) {
+    rail.hidden = true;
+    rail.replaceChildren();
+    return;
+  }
+  rail.hidden = false;
+  rail.style.setProperty('--line', LINE_COLORS[line.id]);
+  rail.replaceChildren(
+    el('p', { class: 'rail-hint' }, `${line.name}에서 시대를 골라 보세요`),
+    el('ul', { class: 'stations' }, line.stations.map((st) => {
+      const era = `${line.name}/${st}`;
+      const n = count((g) => g.era === era);
+      const btn = el('button', {
+        type: 'button', class: `station${n ? '' : ' is-empty'}`,
+        onclick: () => setFilter(line.id, era),
+        'aria-label': `${line.name} ${st}, 게임 ${n}개`,
+      },
+      el('span', { class: 'station-dot', 'aria-hidden': 'true' }, n ? String(n) : ''),
+      el('span', { class: 'station-name' }, st));
+      btn.setAttribute('aria-pressed', String(fEra === era));
+      return el('li', {}, btn);
+    })));
+}
+
+function setFilter(line, era) {
+  const same = state.filter.era === era;
+  state.filter = same ? { line, era: null } : { line, era };
+  renderLines();
+  renderTickets();
+}
+
+/* ───────── 게임 목록 ───────── */
 function renderTickets() {
   const wrap = $('#tickets');
   const games = visibleGames();
   const { line, era } = state.filter;
-  const where = era ? `${place(era).label}에` : line ? `${state.lines.find((l) => l.id === line)?.name}선에` : '모든 노선에';
+  const title = era ? `${place(era).line.replace(/선$/, '')} ${place(era).station}`
+    : line === 'transfer' ? state.transfer
+      : line ? state.lines.find((l) => l.id === line)?.name
+        : '모든 게임';
+  $('#platformTitle').textContent = title;
 
   $('#platformStatus').textContent = games.length
-    ? `${where} 열차 ${games.length}편이 서 있습니다.`
+    ? `게임 ${games.length}개`
     : state.query
-      ? `‘${state.query}’에 맞는 열차가 없습니다. 다른 이름으로 찾아보세요.`
-      : `${where} 아직 서는 열차가 없습니다.`;
+      ? `‘${state.query}’에 맞는 게임이 없습니다. 다른 이름으로 찾아보세요.`
+      : '아직 이 시대의 게임이 없습니다.';
 
   wrap.replaceChildren(...games.map(ticket));
-  if (!state.query) {
+  if (!state.query && (isTeacher() || !games.length)) {
     wrap.append(el('div', { class: 'ticket-empty' },
-      el('p', {}, games.length ? '이 승강장에 선생님의 열차를 더 세워 주세요.' : '이 역에 설 첫 열차를 편성해 주세요.'),
-      el('button', { class: 'btn btn-primary', type: 'button', onclick: () => openSheet(null) }, '새 열차 편성하기')));
+      el('span', { class: 'ticket-empty-plus', 'aria-hidden': 'true' }, '+'),
+      el('p', {}, isTeacher() ? '선생님이 만든 게임을 여기에 올려 주세요.' : '선생님이 게임을 올리면 여기에 나타납니다.'),
+      isTeacher() ? el('button', { class: 'btn btn-primary', type: 'button', onclick: () => openSheet(null) }, '게임 올리기') : null));
   }
 }
 
 function ticket(g) {
   const p = place(g.era);
+  const stationLabel = p.lineId === 'transfer' ? p.station : `${p.line.replace(/선$/, '')} ${p.station}`;
   const view = g.cover
-    ? el('img', { src: g.cover, alt: `${g.title} 표지`, loading: 'lazy' })
-    : el('div', { class: 'window-art', 'aria-hidden': 'true' }, el('p', {}, el('small', {}, '다음 역'), el('span', {}, p.station)));
+    ? el('img', { src: g.cover, alt: '', loading: 'lazy' })
+    : el('div', { class: 'window-art', 'aria-hidden': 'true' }, el('span', {}, p.station));
 
   return el('article', { class: 'ticket', style: `--line:${lineColor(g.era)}` },
-    el('div', { class: 'ticket-band' },
-      el('b', {}, p.line),
-      el('span', {}, `${p.station} 행${g.grade ? `, ${g.grade}` : ''}`)),
-    el('div', { class: 'ticket-window' }, view),
+    // 표지 전체가 ‘타기’ 버튼
+    el('button', { class: 'ticket-window', type: 'button', onclick: () => openRide(g), 'aria-label': `${g.title} 타기` },
+      view,
+      el('span', { class: 'ticket-chip ticket-era' }, stationLabel),
+      el('span', { class: `ticket-chip ticket-price${g.fare ? '' : ' is-free'}` }, g.fare ? coinImg() : null, g.fare ? `${g.fare}닢` : '무료'),
+      el('span', { class: 'ticket-play', 'aria-hidden': 'true' }, '▶ 타기')),
     el('div', { class: 'ticket-body' },
       el('h3', { class: 'ticket-title' }, g.title),
       el('p', { class: 'ticket-summary' }, g.summary || '소개 글이 아직 없습니다.'),
-      fareLine(g)),
-    el('div', { class: 'ticket-stub' },
       el('p', { class: 'ticket-meta' },
-        el('span', {}, '기관사 ', el('strong', {}, `${g.author} 선생님`)),
-        el('span', {}, `승차 ${g.plays || 0}회`)),
-      el('button', { class: 'btn btn-go', type: 'button', onclick: () => openRide(g) }, '승차권 끊기'),
-      isTeacher()
-        ? el('button', { class: 'btn btn-quiet', type: 'button', onclick: () => askPin(g), 'aria-label': `${g.title} 고치기` }, '고치기')
-        : null));
+        el('span', {}, `만든 선생님 ${g.author}`),
+        g.grade ? el('span', {}, g.grade) : null,
+        el('span', {}, `${g.plays || 0}번 탔어요`))),
+    el('div', { class: 'ticket-stub' },
+      fareLine(g),
+      el('div', { class: 'ticket-buttons' },
+        isTeacher()
+          ? el('button', { class: 'btn btn-quiet', type: 'button', onclick: () => askPin(g), 'aria-label': `${g.title} 고치기` }, '고치기')
+          : null,
+        el('button', { class: 'btn btn-go', type: 'button', onclick: () => openRide(g) }, '▶ 타기'))));
 }
 
 const coinImg = () => el('img', { src: 'coin.svg', alt: '' });
 
 function fareLine(g) {
   if (!g.fare && !g.reward) {
-    return el('p', { class: 'ticket-fare' }, el('span', { class: 'is-free' }, g.kind === 'link' ? '무료 열차 (링크 게임)' : '무료 열차'));
+    return el('p', { class: 'ticket-fare' }, el('span', { class: 'is-free' }, g.kind === 'link' ? '무료 게임 (링크)' : '무료 게임'));
   }
   return el('p', { class: 'ticket-fare' },
-    el('span', {}, coinImg(), `차비 ${g.fare}닢`),
-    el('span', {}, `클리어하면 ${g.reward}닢`));
+    el('span', {}, `차비 ${g.fare}닢`),
+    el('span', { class: 'is-reward' }, `깨면 +${g.reward}닢`));
+}
+
+/* ───────── 첫 화면 버튼과 순서 안내 ───────── */
+function renderHero() {
+  const box = $('#heroActions');
+  const me = state.me;
+  const scrollToGames = () => $('#linesNav').scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+
+  if (me.role === 'teacher') {
+    box.replaceChildren(
+      el('button', { class: 'btn btn-hero', type: 'button', onclick: () => openSheet(null) }, '＋ 게임 올리기'),
+      el('button', { class: 'btn btn-hero-ghost', type: 'button', onclick: openOffice }, '반 관리'),
+      el('p', { class: 'hero-note' }, '선생님은 엽전 없이 모든 게임을 탈 수 있어요.'));
+  } else if (me.role === 'student') {
+    box.replaceChildren(
+      el('div', { class: 'hero-purse' },
+        el('img', { src: 'coin.svg', alt: '' }),
+        el('div', {},
+          el('small', {}, `${me.name}, ${me.className}`),
+          el('b', { class: 'purse-count' }, `엽전 ${me.coins}닢`))),
+      el('button', { class: 'btn btn-hero', type: 'button', onclick: scrollToGames }, '게임 고르러 가기 ↓'));
+  } else {
+    box.replaceChildren(
+      el('button', { class: 'btn btn-hero', type: 'button', onclick: () => openLogin('student') }, '학생 입장하기'),
+      el('button', { class: 'btn btn-hero-ghost', type: 'button', onclick: () => openLogin('teacher') }, '선생님 입장'),
+      el('p', { class: 'hero-note' }, '입장하지 않아도 무료 게임은 바로 할 수 있어요. ',
+        el('button', { class: 'link-button', type: 'button', onclick: scrollToGames }, '구경하러 가기')));
+  }
+
+  const steps = me.role === 'teacher'
+    ? [
+      ['반 만들기', '반 관리에서 반을 만들고 반 코드를 학생들에게 알려 주세요.'],
+      ['게임 올리기', 'HTML 파일이나 링크를 올리고 차비와 클리어 보상을 정해요.'],
+      ['엽전 현황 보기', '반 관리에서 학생들이 모은 엽전과 클리어 횟수를 봐요.'],
+    ]
+    : [
+      ['반 코드로 입장', '선생님께 받은 반 코드, 이름, 비밀번호 4자리로 들어와요. 처음엔 엽전 3닢!'],
+      ['게임 골라 타기', '시대를 고르고 게임을 눌러요. 차비만큼 엽전을 내요.'],
+      ['끝까지 깨고 엽전 받기', '게임을 깨면 엽전을 받아요. 모은 엽전으로 다른 게임을 타요.'],
+    ];
+  $('#steps').replaceChildren(...steps.map(([title, text], i) =>
+    el('li', { class: 'step', style: `--i:${i}` },
+      el('span', { class: 'step-num', 'aria-hidden': 'true' }, String(i + 1)),
+      el('div', {}, el('b', {}, title), el('p', {}, text)))));
+  $('#steps').setAttribute('aria-label', me.role === 'teacher' ? '선생님 이용 순서' : '이용 순서');
+}
+
+// 클리어 보상: 엽전이 비처럼 쏟아진다
+function coinRain(target) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const layer = el('div', { class: 'coin-rain', 'aria-hidden': 'true' });
+  for (let i = 0; i < 28; i++) {
+    layer.append(el('img', {
+      src: 'coin.svg', alt: '',
+      style: `left:${Math.random() * 100}%;animation-delay:${Math.random() * .9}s;animation-duration:${1.4 + Math.random()}s;width:${28 + Math.random() * 26}px`,
+    }));
+  }
+  target.append(layer);
+  setTimeout(() => layer.remove(), 2800);
 }
 
 /* ───────── 개찰과 탑승 ───────── */
@@ -227,7 +314,7 @@ function openRide(g) {
   $('#bigTicketLine').textContent = `${p.line} ${g.title}`;
   $('#bigTicketStation').textContent = p.station;
   $('#bigTicketHowTo').textContent = g.howTo || g.summary || '게임 화면의 안내를 따라 즐겨 보세요.';
-  $('#bigTicketByline').textContent = `기관사 ${g.author} 선생님`;
+  $('#bigTicketByline').textContent = `만든 선생님: ${g.author}`;
 
   const gate = $('#gate');
   gate.hidden = false;
@@ -258,14 +345,14 @@ function renderGate(g) {
   if (isTeacher()) {
     box.classList.add('is-pass');
     text.replaceChildren('선생님 정기권으로 엽전 없이 탑니다.');
-    button.textContent = '정기권으로 개찰하기';
+    button.textContent = '선생님은 무료로 시작';
   } else if (!g.fare) {
     box.classList.add('is-free');
     text.replaceChildren('무료 열차입니다.', g.reward && isStudent() ? el('b', {}, ` 클리어하면 엽전 ${g.reward}닢`) : '');
-    button.textContent = '개찰하고 타기';
+    button.textContent = '게임 시작';
   } else if (!isStudent()) {
     text.replaceChildren('이 열차의 차비는 ', el('b', {}, `엽전 ${g.fare}닢`), '입니다.');
-    button.textContent = '들어와서 타기';
+    button.textContent = '입장하고 타기';
     button.dataset.mode = 'login';
     note.textContent = '학생은 반 코드로, 선생님은 교사 비밀번호로 들어오면 탈 수 있습니다.';
     note.hidden = false;
@@ -277,7 +364,7 @@ function renderGate(g) {
     note.hidden = false;
   } else {
     text.replaceChildren('차비 ', el('b', {}, `${g.fare}닢`), `을 내면 ${state.me.coins - g.fare}닢이 남습니다. 클리어하면 `, el('b', {}, `${g.reward}닢`), '을 받습니다.');
-    button.textContent = `엽전 ${g.fare}닢 내고 개찰하기`;
+    button.textContent = `엽전 ${g.fare}닢 내고 시작`;
   }
 }
 
@@ -338,7 +425,10 @@ async function claimClear() {
     if (result.reward > 0) message = `도착! 클리어 보상으로 엽전 ${result.reward}닢을 받았습니다. 가진 엽전 ${state.me.coins}닢`;
     else if (isTeacher()) message = '도착! 학생이 탔다면 이때 보상이 들어갑니다.';
     showArrival(message);
-    if (result.reward > 0) bumpPurse();
+    if (result.reward > 0) {
+      bumpPurse();
+      coinRain($('.ride-stage'));
+    }
   } catch (err) {
     showArrival(err.message);
   }
@@ -430,7 +520,7 @@ function setFareKind(kind) {
 
 function openSheet(g, pin = '') {
   if (!isTeacher()) {
-    openLogin('teacher', '열차 편성은 선생님만 할 수 있습니다.', () => openSheet(g, pin));
+    openLogin('teacher', '게임 올리기는 선생님만 할 수 있습니다.', () => openSheet(g, pin));
     return;
   }
   const form = $('#gameForm');
@@ -441,8 +531,8 @@ function openSheet(g, pin = '') {
   $('#formError').hidden = true;
 
   const editing = Boolean(g);
-  $('#sheetTitle').textContent = editing ? `‘${g.title}’ 고치기` : '새 열차 편성하기';
-  $('#submitButton').textContent = editing ? '고친 내용 저장' : '열차 편성하기';
+  $('#sheetTitle').textContent = editing ? `‘${g.title}’ 고치기` : '게임 올리기';
+  $('#submitButton').textContent = editing ? '고친 내용 저장' : '게임 올리기';
   $('#deleteButton').hidden = !editing;
   $('#newPinField').hidden = !editing;
   form.querySelector('.pin-field').hidden = editing;
@@ -534,7 +624,7 @@ async function submitSheet(e) {
     } else {
       const { game } = await api('/api/games', { method: 'POST', body });
       state.games.unshift(game);
-      toast(`‘${game.title}’ 열차를 편성했습니다.`);
+      toast(`‘${game.title}’ 게임을 올렸습니다.`);
     }
     $('#sheet').close();
     renderAll();
@@ -552,22 +642,22 @@ async function deleteGame() {
   // 브라우저 확인창 대신 버튼을 두 번 누르게 한다
   if (btn.dataset.armed !== 'true') {
     btn.dataset.armed = 'true';
-    btn.textContent = '한 번 더 누르면 운행을 끝냅니다';
-    setTimeout(() => { btn.dataset.armed = ''; btn.textContent = '운행 끝내기'; }, 4000);
+    btn.textContent = '한 번 더 누르면 게임을 내립니다';
+    setTimeout(() => { btn.dataset.armed = ''; btn.textContent = '게임 내리기'; }, 4000);
     return;
   }
   try {
     await api(`/api/games/${g.id}`, { method: 'DELETE', body: { pin: state.editPin } });
     state.games = state.games.filter((x) => x.id !== g.id);
     $('#sheet').close();
-    toast(`‘${g.title}’ 열차 운행을 끝냈습니다.`);
+    toast(`‘${g.title}’ 게임을 내렸습니다.`);
     renderAll();
   } catch (err) {
     $('#formError').textContent = err.message;
     $('#formError').hidden = false;
   } finally {
     btn.dataset.armed = '';
-    btn.textContent = '운행 끝내기';
+    btn.textContent = '게임 내리기';
   }
 }
 
@@ -603,26 +693,27 @@ function renderPassenger() {
   const me = state.me;
   if (me.role === 'teacher') {
     box.replaceChildren(
-      el('span', { class: 'pass-badge' }, '선생님 정기권'),
-      el('button', { class: 'btn btn-ghost btn-small', type: 'button', onclick: openOffice }, '역무실'),
+      el('span', { class: 'pass-badge' }, '선생님'),
+      el('button', { class: 'btn btn-primary btn-small', type: 'button', onclick: () => openSheet(null) }, '＋ 게임 올리기'),
+      el('button', { class: 'btn btn-ghost btn-small', type: 'button', onclick: openOffice }, '반 관리'),
       el('button', { class: 'btn btn-ghost btn-small', type: 'button', onclick: logout }, '나가기'));
   } else if (me.role === 'student') {
     box.replaceChildren(
-      el('p', { class: 'passenger-who' }, `${me.name}`, el('small', {}, me.className)),
+      el('p', { class: 'passenger-who' }, me.name),
       purseChip(),
       el('button', { class: 'btn btn-ghost btn-small', type: 'button', onclick: logout }, '나가기'));
   } else {
     box.replaceChildren(
-      el('p', { class: 'passenger-who' }, '구경 중', el('small', {}, '들어오면 엽전으로 열차를 탈 수 있습니다')),
-      el('button', { class: 'btn btn-primary btn-small', type: 'button', onclick: () => openLogin('student') }, '들어오기'));
+      el('button', { class: 'btn btn-primary btn-small', type: 'button', onclick: () => openLogin('student') }, '입장하기'));
   }
+  renderHero();
 }
 
 function logout() {
   state.token = '';
   saveSession();
   setMe({ role: 'guest' });
-  toast('나갔습니다. 다음에 또 타러 오세요.');
+  toast('나갔습니다. 다음에 또 오세요.');
 }
 
 function switchLoginTab(tab) {
@@ -692,7 +783,7 @@ async function submitTeacher(e) {
 
 /* ───────── 역무실: 반과 학생 ───────── */
 async function openOffice() {
-  if (!isTeacher()) return openLogin('teacher', '역무실은 선생님만 들어갈 수 있습니다.', openOffice);
+  if (!isTeacher()) return openLogin('teacher', '반 관리는 선생님만 할 수 있습니다.', openOffice);
   $('#officeError').hidden = true;
   $('#officeNotice').hidden = true;
   if (!$('#officeDialog').open) $('#officeDialog').showModal();
@@ -876,7 +967,6 @@ window.addEventListener('message', (e) => {
   if (e.data && e.data.type === SIGNAL) claimClear();
 });
 
-$('#routeAll').addEventListener('click', () => { state.filter = { line: null, era: null }; renderLines(); renderTickets(); });
 $('#gateButton').addEventListener('click', passGate);
 $('#gameForm').addEventListener('submit', submitSheet);
 $('#pinForm').addEventListener('submit', submitPin);
