@@ -21,6 +21,7 @@ const state = {
   token: '',
   rideId: null,        // 지금 탄 열차의 승차 기록 (클리어 보상에 쓴다)
   loginAfter: null,    // 들어온 뒤 이어서 할 일
+  limits: { gameBytes: 100 * 1024 * 1024 },
 };
 
 const SESSION_KEY = 'history-station-session';
@@ -61,14 +62,32 @@ function toast(message) {
 }
 
 /* ───────── 노선과 역 ───────── */
-// '한국사/조선' → { line, station, lineId, label }
+// 역 이름: 한국사는 '조선', 동양사·서양사는 '동양고대사'처럼 붙여 부른다
+function stationName(line, station) {
+  return line.prefix ? `${line.prefix}${station}사` : station;
+}
+
+// 1판부터 차례로 붙는 번호 (한국사 1~6판, 동양사 7~10판, 서양사 11~15판)
+function stationNumber(line, station) {
+  let n = 0;
+  for (const l of state.lines) {
+    if (l === line) return n + l.stations.indexOf(station) + 1;
+    n += l.stations.length;
+  }
+  return null;
+}
+
+// '서양사/중세' → { lineId, line: '서양사선', station: '서양중세사', no: 12, tag: '12판 서양중세사' }
 function place(era) {
   if (era === state.transfer) {
-    return { lineId: 'transfer', line: '환승역', station: era, label: `${era}(환승역)` };
+    return { lineId: 'transfer', line: '환승역', station: era, no: null, tag: era };
   }
-  const [lineName, station] = String(era).split('/');
+  const [lineName, st] = String(era).split('/');
   const line = state.lines.find((l) => l.name === lineName);
-  return { lineId: line ? line.id : 'transfer', line: `${lineName}선`, station, label: `${lineName} ${station}역` };
+  if (!line) return { lineId: 'transfer', line: '환승역', station: st || era, no: null, tag: st || era };
+  const station = stationName(line, st);
+  const no = stationNumber(line, st);
+  return { lineId: line.id, line: `${lineName}선`, station, no, tag: `${no}판 ${station}` };
 }
 const lineColor = (era) => LINE_COLORS[place(era).lineId];
 
@@ -101,7 +120,7 @@ function renderBoard() {
     const cell = (...content) => el('td', {}, el('button', { type: 'button', tabIndex: -1, onclick: () => openRide(g) }, ...content));
     const row = el('tr', { class: 'board-row', style: `--i:${i}` },
       el('td', {}, el('button', { type: 'button', class: 'board-title', onclick: () => openRide(g), 'aria-label': `${g.title} 타기` }, g.title)),
-      cell(el('span', { class: 'board-dest', style: `--line:${lineColor(g.era)}` }, el('i'), p.station)),
+      cell(el('span', { class: 'board-dest', style: `--line:${lineColor(g.era)}` }, el('i'), p.tag)),
       cell(`${g.author}`),
       cell(g.fare ? `${g.fare}닢` : '무료'));
     body.append(row);
@@ -152,13 +171,15 @@ function renderLines() {
     el('ul', { class: 'stations' }, line.stations.map((st) => {
       const era = `${line.name}/${st}`;
       const n = count((g) => g.era === era);
+      const p = place(era);
       const btn = el('button', {
         type: 'button', class: `station${n ? '' : ' is-empty'}`,
         onclick: () => setFilter(line.id, era),
-        'aria-label': `${line.name} ${st}, 게임 ${n}개`,
+        'aria-label': `${p.tag}, 게임 ${n}개`,
       },
       el('span', { class: 'station-dot', 'aria-hidden': 'true' }, n ? String(n) : ''),
-      el('span', { class: 'station-name' }, st));
+      el('span', { class: 'station-no' }, `${p.no}판`),
+      el('span', { class: 'station-name' }, p.station));
       btn.setAttribute('aria-pressed', String(fEra === era));
       return el('li', {}, btn);
     })));
@@ -176,7 +197,7 @@ function renderTickets() {
   const wrap = $('#tickets');
   const games = visibleGames();
   const { line, era } = state.filter;
-  const title = era ? `${place(era).line.replace(/선$/, '')} ${place(era).station}`
+  const title = era ? place(era).tag
     : line === 'transfer' ? state.transfer
       : line ? state.lines.find((l) => l.id === line)?.name
         : '모든 게임';
@@ -199,7 +220,7 @@ function renderTickets() {
 
 function ticket(g) {
   const p = place(g.era);
-  const stationLabel = p.lineId === 'transfer' ? p.station : `${p.line.replace(/선$/, '')} ${p.station}`;
+  const stationLabel = p.tag;
   const view = g.cover
     ? el('img', { src: g.cover, alt: '', loading: 'lazy' })
     : el('div', { class: 'window-art', 'aria-hidden': 'true' }, el('span', {}, p.station));
@@ -307,7 +328,7 @@ function openRide(g) {
   state.current = g;
   const ride = $('#ride');
   ride.style.setProperty('--line', lineColor(g.era));
-  $('#rideRoute').textContent = `${p.line} ${p.station} 행`;
+  $('#rideRoute').textContent = `${p.line} ${p.tag} 행`;
   $('#rideTitle').textContent = g.title;
   $('#rideNewWindow').href = gameSrc(g);
   $('#bigTicket').style.setProperty('--line', lineColor(g.era));
@@ -489,7 +510,7 @@ function renderEraChoices() {
     el('div', { class: 'era-choices' }, choices));
 
   $('#eraChoices').replaceChildren(
-    ...state.lines.map((l) => group(l.id, l.name, l.stations.map((st) => choice(`${l.name}/${st}`, st)))),
+    ...state.lines.map((l) => group(l.id, l.name, l.stations.map((st) => choice(`${l.name}/${st}`, place(`${l.name}/${st}`).tag)))),
     group('transfer', '환승역', [choice(state.transfer, state.transfer)]));
 }
 
@@ -556,6 +577,29 @@ function openSheet(g, pin = '') {
   form.elements.title.focus();
 }
 
+function formatSize(bytes) {
+  return bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1).replace(/\.0$/, '')}MB` : `${Math.ceil(bytes / 1024)}KB`;
+}
+
+// 진행률을 보여 주려고 fetch 대신 XMLHttpRequest로 올린다
+function uploadHtml(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/uploads');
+    xhr.setRequestHeader('Content-Type', 'text/html; charset=utf-8');
+    if (state.token) xhr.setRequestHeader('Authorization', `Bearer ${state.token}`);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.floor((e.loaded / e.total) * 100)); };
+    xhr.onload = () => {
+      let data = {};
+      try { data = JSON.parse(xhr.responseText); } catch { /* 빈 응답 */ }
+      if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+      else reject(new Error(data.error || '파일을 올리지 못했습니다.'));
+    };
+    xhr.onerror = () => reject(new Error('파일을 올리는 중에 연결이 끊겼습니다. 인터넷 연결을 확인하고 다시 올려 주세요.'));
+    xhr.send(file);
+  });
+}
+
 const readFile = (file, as) => new Promise((resolve, reject) => {
   const r = new FileReader();
   r.onload = () => resolve(r.result);
@@ -595,11 +639,16 @@ async function submitSheet(e) {
     Object.assign(body, { fare, reward });
   }
 
+  let htmlFile = null;
   if (body.kind === 'link') {
     if (!/^https?:\/\//.test(f.url.value.trim())) return fail('게임 주소를 https:// 로 시작하게 적어 주세요.', f.url);
     body.url = f.url.value.trim();
   } else if (f.html.files[0]) {
-    body.html = await readFile(f.html.files[0], 'text');
+    htmlFile = f.html.files[0];
+    if (htmlFile.size > state.limits.gameBytes) {
+      return fail(`HTML 파일이 ${formatSize(htmlFile.size)}입니다. ${formatSize(state.limits.gameBytes)}까지 올릴 수 있습니다.`, f.html);
+    }
+    if (htmlFile.size === 0) return fail('HTML 파일이 비어 있습니다.', f.html);
   } else if (!editing || editing.kind !== 'html') {
     return fail('올릴 HTML 파일을 골라 주세요.', f.html);
   }
@@ -615,8 +664,15 @@ async function submitSheet(e) {
   }
 
   const submit = $('#submitButton');
+  const submitLabel = submit.textContent;
   submit.disabled = true;
   try {
+    // 큰 파일은 따로 흘려 올리고, 받은 번호만 게임 정보에 담는다
+    if (htmlFile) {
+      const { upload } = await uploadHtml(htmlFile, (pct) => { submit.textContent = `파일 올리는 중 ${pct}%`; });
+      body.upload = upload;
+      submit.textContent = '저장하는 중';
+    }
     if (editing) {
       const { game } = await api(`/api/games/${editing.id}`, { method: 'PUT', body });
       Object.assign(editing, game);
@@ -631,6 +687,7 @@ async function submitSheet(e) {
   } catch (err) {
     fail(err.message);
   } finally {
+    submit.textContent = submitLabel;
     submit.disabled = false;
   }
 }
@@ -926,6 +983,8 @@ async function load() {
     const data = await api('/api/games');
     state.lines = data.lines;
     state.transfer = data.transfer;
+    state.limits = data.limits || state.limits;
+    $('#htmlLimit').textContent = formatSize(state.limits.gameBytes);
     state.games = data.games;
     renderEraChoices();
     renderAll();

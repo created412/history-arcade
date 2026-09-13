@@ -7,6 +7,16 @@ const crypto = require('crypto');
 const { createGithubStore } = require('./github-store');
 const { createPassengers } = require('./passengers');
 
+// 로컬 실행용 .env 파일(git에 올리지 않음)의 값을 환경변수로 읽는다
+(function loadDotEnv() {
+  const file = path.join(__dirname, '.env');
+  if (!fs.existsSync(file)) return;
+  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*?)\s*$/);
+    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, '$2');
+  }
+})();
+
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
@@ -14,13 +24,18 @@ const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const GAMES_DIR = path.join(DATA_DIR, 'games');
 const DB_FILE = path.join(DATA_DIR, 'games.json');
 const CLASSES_FILE = path.join(DATA_DIR, 'classes.json');
-const MAX_BODY = 12 * 1024 * 1024; // 12MB (HTML 파일 + 표지 그림)
+const UPLOADS_DIR = path.join(DATA_DIR, 'uploads');
+const MAX_BODY = 4 * 1024 * 1024; // 게임 정보(JSON)와 표지 그림
+// HTML 게임 파일 한 개의 최대 크기. 파일은 디스크로 흘려 받고 GitHub 릴리스(파일당 2GB)에 보관하므로
+// 메모리 부담은 없다. 게임을 여는 학생 기기를 생각해 기본 100MB로 두고, MAX_GAME_MB로 바꿀 수 있다.
+const MAX_GAME_BYTES = Number(process.env.MAX_GAME_MB || 100) * 1024 * 1024;
 
 // 노선(대분류)과 역(시대). 게임의 era 값은 '노선/역' 또는 환승역 '여러 시대'
+// 역에는 1판부터 차례로 번호가 붙는다 (한국사 1~6판, 동양사 7~10판, 서양사 11~15판)
 const LINES = [
   { id: 'korea', name: '한국사', stations: ['선사·고조선', '삼국·남북국', '고려', '조선', '근대', '현대'] },
-  { id: 'east', name: '동양사', stations: ['중국사', '일본사'] },
-  { id: 'west', name: '서양사', stations: ['고대', '중세', '근대', '현대'] },
+  { id: 'east', name: '동양사', prefix: '동양', stations: ['고대', '중세', '근대', '현대'] },
+  { id: 'west', name: '서양사', prefix: '서양', stations: ['고대', '중세', '근세', '근대', '현대'] },
 ];
 const TRANSFER = '여러 시대';
 // 게임마다 선생님이 정하는 차비와 클리어 보상 (엽전 닢)
@@ -32,6 +47,8 @@ const ERAS = [...LINES.flatMap((l) => l.stations.map((st) => `${l.name}/${st}`))
 const LEGACY_ERAS = {
   '선사·고조선': '한국사/선사·고조선', '삼국·남북국': '한국사/삼국·남북국', '고려': '한국사/고려',
   '조선': '한국사/조선', '근대': '한국사/근대', '현대': '한국사/현대', '세계사': TRANSFER,
+  // 나라별로 나눴던 동양사는 시대를 알 수 없어 환승역으로 옮긴다
+  '동양사/중국사': TRANSFER, '동양사/일본사': TRANSFER,
 };
 function migrateEras() {
   if (!fs.existsSync(DB_FILE)) return false;
@@ -81,6 +98,7 @@ async function prepareData() {
     if (!files['games.json']) await store.save(seedGames(), '견본 게임 들여놓기');
     else if (migrateEras()) await persist({}, '시대 분류를 노선별로 옮기기');
     console.log(`데이터 보관소: GitHub ${store.describe}`);
+    await restoreGameFiles();
   } else if (!fs.existsSync(DB_FILE)) {
     seedGames();
   } else {
@@ -94,6 +112,17 @@ async function prepareData() {
 }
 
 let passengers = null;
+
+// 게임 파일을 보관소에서 내려받는다. 실패해도 서버는 켜고, 1분 뒤 다시 시도한다.
+async function restoreGameFiles() {
+  try {
+    const count = await store.loadFiles(GAMES_DIR);
+    console.log(`게임 파일 ${count}개를 보관소에서 받았습니다.`);
+  } catch (e) {
+    console.error('게임 파일을 받지 못했습니다. 1분 뒤 다시 시도합니다:', e.message);
+    setTimeout(restoreGameFiles, 60 * 1000).unref();
+  }
+}
 
 // 바뀐 파일을 보관소에 올린다. 로컬 실행(보관소 없음)이면 아무 일도 하지 않는다.
 async function persist(changes, message) {
@@ -177,7 +206,7 @@ function readBody(req) {
     req.on('data', (c) => {
       size += c.length;
       if (size > MAX_BODY) {
-        reject(Object.assign(new Error('파일이 너무 큽니다. 12MB 이하로 올려 주세요.'), { status: 413 }));
+        reject(Object.assign(new Error('게임 정보가 너무 큽니다. 표지 그림을 더 작은 것으로 골라 주세요.'), { status: 413 }));
         req.destroy();
         return;
       }
@@ -227,10 +256,13 @@ function validate(input, partial) {
       out.kind = 'link';
       out.url = url.href;
     } else if (input.kind === 'html') {
-      if (input.html !== undefined) {
-        const html = String(input.html);
-        if (!html.trim()) throw err('HTML 파일이 비어 있습니다.');
-        out.html = html;
+      // 파일은 먼저 /api/uploads로 올리고, 받은 번호(upload)만 여기로 보낸다
+      if (input.upload !== undefined) {
+        const upload = String(input.upload);
+        if (!/^[a-f0-9]{24}$/.test(upload) || !fs.existsSync(uploadFile(upload))) {
+          throw err('올린 HTML 파일을 찾을 수 없습니다. 파일을 다시 골라 주세요.');
+        }
+        out.upload = upload;
       } else if (!partial) {
         throw err('HTML 파일을 골라 주세요.');
       }
@@ -262,18 +294,90 @@ function gameFile(id) {
   return path.join(GAMES_DIR, `${id}.html`);
 }
 
+function uploadFile(id) {
+  return path.join(UPLOADS_DIR, `${id}.html`);
+}
+
+// 올려 둔 파일을 게임 자리로 옮긴다. 보관소(GitHub 릴리스)에는 뒤에서 이어 올려
+// 선생님이 큰 파일 보관이 끝날 때까지 기다리지 않게 한다.
+function placeUpload(uploadId, gameId) {
+  fs.renameSync(uploadFile(uploadId), gameFile(gameId));
+  if (store) store.saveFile(gameId, gameFile(gameId));
+  return {};
+}
+
+function forgetFile(gameId, changes) {
+  if (fs.existsSync(gameFile(gameId))) fs.unlinkSync(gameFile(gameId));
+  if (store) store.deleteFile(gameId);
+  changes[`games/${gameId}.html`] = null; // 예전 방식(브랜치)에 남아 있을 수 있는 파일도 지운다
+}
+
+// HTML 파일을 메모리에 모으지 않고 바로 디스크에 흘려 쓴다
+function receiveUpload(req, res) {
+  const length = Number(req.headers['content-length'] || 0);
+  const limitMb = Math.round(MAX_GAME_BYTES / 1024 / 1024);
+  if (length > MAX_GAME_BYTES) {
+    req.resume();
+    return send(res, 413, { error: `HTML 파일은 ${limitMb}MB까지 올릴 수 있습니다.` });
+  }
+  fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+  const id = crypto.randomBytes(12).toString('hex');
+  const file = uploadFile(id);
+  const out = fs.createWriteStream(file);
+  let size = 0;
+  let failed = false;
+  const fail = (status, message) => {
+    if (failed) return;
+    failed = true;
+    out.destroy();
+    fs.rm(file, { force: true }, () => {});
+    if (!res.headersSent) send(res, status, { error: message });
+    req.resume();
+  };
+  req.on('data', (chunk) => {
+    size += chunk.length;
+    if (size > MAX_GAME_BYTES) fail(413, `HTML 파일은 ${limitMb}MB까지 올릴 수 있습니다.`);
+  });
+  req.on('error', () => fail(400, '파일을 받는 중에 연결이 끊겼습니다. 다시 올려 주세요.'));
+  out.on('error', () => fail(500, '파일을 저장하지 못했습니다.'));
+  out.on('finish', () => {
+    if (failed) return;
+    if (size === 0) return fail(400, 'HTML 파일이 비어 있습니다.');
+    send(res, 201, { upload: id, size });
+  });
+  req.pipe(out);
+}
+
+// 게임으로 옮기지 않은 채 남은 임시 파일은 한 시간 뒤 지운다
+function sweepUploads() {
+  if (!fs.existsSync(UPLOADS_DIR)) return;
+  for (const name of fs.readdirSync(UPLOADS_DIR)) {
+    const file = path.join(UPLOADS_DIR, name);
+    if (Date.now() - fs.statSync(file).mtimeMs > 60 * 60 * 1000) fs.rmSync(file, { force: true });
+  }
+}
+setInterval(sweepUploads, 15 * 60 * 1000).unref();
+
 async function handleApi(req, res, url) {
   const parts = url.pathname.split('/').filter(Boolean); // ['api', area, ...]
   if (parts[1] === 'session' || parts[1] === 'classes') return passengers.handle(req, res, parts, { readBody, send });
   if (parts[1] === 'rides' && req.method === 'POST' && parts[3] === 'clear') {
     return send(res, 200, passengers.clearRide(req, parts[2]));
   }
+  if (parts[1] === 'uploads' && req.method === 'POST' && !parts[2]) {
+    passengers.requireTeacher(req);
+    return receiveUpload(req, res);
+  }
   if (parts[1] !== 'games') return send(res, 404, { error: '없는 주소입니다.' });
   const id = parts[2];
   const games = readDb();
 
   if (req.method === 'GET' && !id) {
-    return send(res, 200, { lines: LINES, transfer: TRANSFER, eras: ERAS, games: games.map(publicGame) });
+    return send(res, 200, {
+      lines: LINES, transfer: TRANSFER, eras: ERAS,
+      limits: { gameBytes: MAX_GAME_BYTES },
+      games: games.map(publicGame),
+    });
   }
 
   if (req.method === 'POST' && !id) {
@@ -301,10 +405,10 @@ async function handleApi(req, res, url) {
       updatedAt: now,
       pinHash: hashPin(pin),
     };
-    if (data.kind === 'html') fs.writeFileSync(gameFile(game.id), data.html);
+    const changes = data.kind === 'html' ? placeUpload(data.upload, game.id) : {};
     games.unshift(game);
     writeDb(games);
-    await persist(data.kind === 'html' ? { [`games/${game.id}.html`]: data.html } : {}, `게임 등록: ${game.title}`);
+    await persist(changes, `게임 등록: ${game.title}`);
     return send(res, 201, { game: publicGame(game) });
   }
 
@@ -334,16 +438,12 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     if (!checkPin(body.pin, game.pinHash)) return send(res, 403, { error: '비밀번호가 맞지 않습니다.' });
     const data = validate(body, true);
-    const changes = {};
-    if (data.html !== undefined) {
-      fs.writeFileSync(gameFile(game.id), data.html);
-      changes[`games/${game.id}.html`] = data.html;
-      delete data.html;
+    let changes = {};
+    if (data.upload !== undefined) {
+      changes = placeUpload(data.upload, game.id);
+      delete data.upload;
     }
-    if (data.kind === 'link' && fs.existsSync(gameFile(game.id))) {
-      fs.unlinkSync(gameFile(game.id));
-      changes[`games/${game.id}.html`] = null;
-    }
+    if (data.kind === 'link' && game.kind === 'html') forgetFile(game.id, changes);
     if (data.kind === 'html') {
       data.url = '';
       if (!fs.existsSync(gameFile(game.id))) return send(res, 400, { error: 'HTML 파일을 골라 주세요.' });
@@ -364,10 +464,7 @@ async function handleApi(req, res, url) {
     games.splice(idx, 1);
     writeDb(games);
     const changes = {};
-    if (fs.existsSync(gameFile(game.id))) {
-      fs.unlinkSync(gameFile(game.id));
-      changes[`games/${game.id}.html`] = null;
-    }
+    if (game.kind === 'html') forgetFile(game.id, changes);
     await persist(changes, `게임 치움: ${game.title}`);
     return send(res, 200, { ok: true });
   }
@@ -422,5 +519,9 @@ prepareData()
 // 호스팅이 서버를 끌 때 모아 둔 승차·엽전 기록을 먼저 올린다
 process.on('SIGTERM', async () => {
   if (laterTimer) { clearTimeout(laterTimer); await persist({}, '승차·엽전 기록'); }
+  // 아직 보관 중인 게임 파일이 있으면 최대 25초 기다린다 (Render는 끄기 전 30초를 준다)
+  if (store && store.pendingFiles()) {
+    await Promise.race([store.flushFiles(), new Promise((r) => setTimeout(r, 25 * 1000))]);
+  }
   process.exit(0);
 });
