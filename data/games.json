@@ -1,5 +1,25 @@
 [
   {
+    "id": "b10e2b0a61da",
+    "title": "명부(名簿)",
+    "author": "이재영",
+    "era": "한국사/현대",
+    "grade": "고등학교 1학년,고등학교 2학년",
+    "summary": "6.25 전쟁과 베트남 전쟁을 피해자의 입장에서 느끼는 시뮬레이션 게임",
+    "howTo": "12일의 날짜 동안 피해자의 입장이 되어 역사를 겪어내는 생존게임",
+    "kind": "link",
+    "url": "https://created412.github.io/impact-game/",
+    "cover": "",
+    "fare": 1,
+    "reward": 2,
+    "plays": 0,
+    "createdAt": "2026-09-13T10:59:29.272Z",
+    "updatedAt": "2026-09-13T10:59:29.272Z",
+    "ownerId": "e2707fba829d",
+    "school": "양지고등학교",
+    "pinHash": null
+  },
+  {
     "plays": 0,
     "createdAt": "2026-09-13T09:30:32.748Z",
     "updatedAt": "2026-09-13T09:30:32.748Z",
