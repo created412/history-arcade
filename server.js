@@ -1,4 +1,4 @@
-// 역사오락실 — 의존성 없는 Node 서버
+// 시간여행 역사(驛舍) — 의존성 없는 Node 서버
 // 실행: node server.js  (기본 포트 3000, PORT 환경변수로 변경)
 const http = require('http');
 const fs = require('fs');
@@ -14,7 +14,30 @@ const GAMES_DIR = path.join(DATA_DIR, 'games');
 const DB_FILE = path.join(DATA_DIR, 'games.json');
 const MAX_BODY = 12 * 1024 * 1024; // 12MB (HTML 파일 + 표지 그림)
 
-const ERAS = ['선사·고조선', '삼국·남북국', '고려', '조선', '근대', '현대', '세계사', '여러 시대'];
+// 노선(대분류)과 역(시대). 게임의 era 값은 '노선/역' 또는 환승역 '여러 시대'
+const LINES = [
+  { id: 'korea', name: '한국사', stations: ['선사·고조선', '삼국·남북국', '고려', '조선', '근대', '현대'] },
+  { id: 'east', name: '동양사', stations: ['중국사', '일본사'] },
+  { id: 'west', name: '서양사', stations: ['고대', '중세', '근대', '현대'] },
+];
+const TRANSFER = '여러 시대';
+const ERAS = [...LINES.flatMap((l) => l.stations.map((st) => `${l.name}/${st}`)), TRANSFER];
+
+// 예전 한 줄짜리 시대 이름을 새 분류로 옮긴다
+const LEGACY_ERAS = {
+  '선사·고조선': '한국사/선사·고조선', '삼국·남북국': '한국사/삼국·남북국', '고려': '한국사/고려',
+  '조선': '한국사/조선', '근대': '한국사/근대', '현대': '한국사/현대', '세계사': TRANSFER,
+};
+function migrateEras() {
+  if (!fs.existsSync(DB_FILE)) return false;
+  const games = readDb();
+  let changed = false;
+  for (const g of games) {
+    if (LEGACY_ERAS[g.era]) { g.era = LEGACY_ERAS[g.era]; changed = true; }
+  }
+  if (changed) writeDb(games);
+  return changed;
+}
 
 const SEED_DIR = path.join(ROOT, 'seed');
 
@@ -23,7 +46,7 @@ const store = process.env.GITHUB_TOKEN && process.env.GITHUB_REPO
   ? createGithubStore({ token: process.env.GITHUB_TOKEN, repo: process.env.GITHUB_REPO, branch: process.env.DATA_BRANCH })
   : null;
 
-// 처음 켤 때 오락실이 텅 비지 않도록 견본 게임을 들여놓는다
+// 처음 켤 때 정거장이 텅 비지 않도록 견본 게임을 들여놓는다
 function seedGames() {
   const seedFile = path.join(SEED_DIR, 'games.json');
   const seeds = fs.existsSync(seedFile) ? JSON.parse(fs.readFileSync(seedFile, 'utf8')) : [];
@@ -51,9 +74,12 @@ async function prepareData() {
       fs.writeFileSync(path.join(DATA_DIR, rel), buf);
     }
     if (!files['games.json']) await store.save(seedGames(), '견본 게임 들여놓기');
+    else if (migrateEras()) await persist({}, '시대 분류를 노선별로 옮기기');
     console.log(`데이터 보관소: GitHub ${store.describe}`);
   } else if (!fs.existsSync(DB_FILE)) {
     seedGames();
+  } else {
+    migrateEras();
   }
 }
 
@@ -215,7 +241,7 @@ async function handleApi(req, res, url) {
   const games = readDb();
 
   if (req.method === 'GET' && !id) {
-    return send(res, 200, { eras: ERAS, games: games.map(publicGame) });
+    return send(res, 200, { lines: LINES, transfer: TRANSFER, eras: ERAS, games: games.map(publicGame) });
   }
 
   if (req.method === 'POST' && !id) {
@@ -310,7 +336,7 @@ async function handleApi(req, res, url) {
 }
 
 // 올라온 HTML 게임은 CSP sandbox로 격리된 출처에서 실행한다.
-// (게임 코드가 오락실 API나 다른 선생님의 데이터에 접근하지 못하게)
+// (게임 코드가 사이트 API나 다른 선생님의 데이터에 접근하지 못하게)
 function serveGame(res, id) {
   if (!/^[a-f0-9]{12}$/.test(id) || !fs.existsSync(gameFile(id))) {
     return send(res, 404, '게임 파일이 없습니다.');
@@ -347,7 +373,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 prepareData()
-  .then(() => server.listen(PORT, () => console.log(`역사오락실 영업 시작 → http://localhost:${PORT}`)))
+  .then(() => server.listen(PORT, () => console.log(`시간여행 역사 운행 시작 → http://localhost:${PORT}`)))
   .catch((e) => {
     console.error('데이터를 불러오지 못해 서버를 켜지 않았습니다:', e.message);
     process.exit(1);

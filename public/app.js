@@ -1,26 +1,22 @@
-// 역사오락실 화면 동작
-const ERA_COLORS = {
-  // 초록 바탕 위에서 구별되도록 커버의 분홍·크림 결에 맞춘 파스텔
-  '선사·고조선': '#e3c9a0',
-  '삼국·남북국': '#efbdb3',
-  '고려': '#a9d3b5',
-  '조선': '#b9cbe6',
-  '근대': '#eed58a',
-  '현대': '#f0a58f',
-  '세계사': '#cdb9e3',
-  '여러 시대': '#f6eee2',
+// 시간여행 역사(驛舍) 화면 동작
+const LINE_COLORS = {
+  korea: 'var(--line-korea)',
+  east: 'var(--line-east)',
+  west: 'var(--line-west)',
+  transfer: 'var(--line-transfer)',
 };
 
 const state = {
-  eras: [],
+  lines: [],         // [{ id, name, stations }]
+  transfer: '여러 시대',
   games: [],
-  era: '전체',
+  filter: { line: null, era: null }, // line: 노선 id 또는 'transfer', era: '노선/역'
   query: '',
-  current: null,     // 플레이 중인 게임
+  current: null,     // 탑승 중인 게임
   editing: null,     // 고치는 중인 게임
   editPin: '',
   cover: undefined,  // undefined: 그대로, '': 뺌, 'data:...': 새 그림
-  pinAfter: null,    // 비밀번호 확인 뒤 할 일
+  pinAfter: null,
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -55,135 +51,198 @@ function toast(message) {
   toast.timer = setTimeout(() => { t.hidden = true; }, 2600);
 }
 
-/* ───────── 목록 ───────── */
-async function load() {
-  try {
-    const data = await api('/api/games');
-    state.eras = data.eras;
-    state.games = data.games;
-    renderStages();
-    renderEraChoices();
-    renderCabinets();
-  } catch (e) {
-    $('#floorStatus').textContent = `게임기를 불러오지 못했습니다. 서버가 켜져 있는지 확인한 뒤 새로고침해 주세요. (${e.message})`;
+/* ───────── 노선과 역 ───────── */
+// '한국사/조선' → { line, station, lineId, label }
+function place(era) {
+  if (era === state.transfer) {
+    return { lineId: 'transfer', line: '환승역', station: era, label: `${era}(환승역)` };
   }
+  const [lineName, station] = String(era).split('/');
+  const line = state.lines.find((l) => l.name === lineName);
+  return { lineId: line ? line.id : 'transfer', line: `${lineName}선`, station, label: `${lineName} ${station}역` };
 }
+const lineColor = (era) => LINE_COLORS[place(era).lineId];
 
-function renderStages() {
-  const list = $('#stageList');
-  list.replaceChildren();
-  const stages = ['전체', ...state.eras];
-  stages.forEach((era, i) => {
-    const count = era === '전체' ? state.games.length : state.games.filter((g) => g.era === era).length;
-    const btn = el('button', {
-      class: 'stage', type: 'button', role: 'tab',
-      style: era === '전체' ? '' : `--era:${ERA_COLORS[era]}`,
-    },
-    // 한국사 시대는 실제로 순서가 있으므로 ‘판’ 번호를 붙인다 (세계사·여러 시대는 제외)
-    i === 0 || i > 6 ? null : el('b', {}, `${i}판`),
-    `${era} ${count}`);
-    btn.setAttribute('aria-selected', String(state.era === era));
-    btn.addEventListener('click', () => { state.era = era; renderStages(); renderCabinets(); });
-    list.append(btn);
-  });
+function matchesFilter(g) {
+  const { line, era } = state.filter;
+  if (era) return g.era === era;
+  if (line) return place(g.era).lineId === line;
+  return true;
 }
 
 function visibleGames() {
   const q = state.query.trim().toLowerCase();
   return state.games.filter((g) =>
-    (state.era === '전체' || g.era === state.era) &&
-    (!q || `${g.title} ${g.author} ${g.summary}`.toLowerCase().includes(q)));
+    matchesFilter(g) && (!q || `${g.title} ${g.author} ${g.summary}`.toLowerCase().includes(q)));
 }
 
-function renderCabinets() {
-  const wrap = $('#cabinets');
+function setFilter(line, era) {
+  const same = state.filter.line === line && state.filter.era === era;
+  state.filter = same ? { line: null, era: null } : { line, era };
+  renderLines();
+  renderTickets();
+}
+
+/* ───────── 출발 안내판 ───────── */
+function renderBoard() {
+  const body = $('#board');
+  const latest = [...state.games]
+    .sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)))
+    .slice(0, 6);
+  body.replaceChildren();
+  if (!latest.length) {
+    body.append(el('tr', { class: 'board-empty' }, el('td', { colSpan: 4 }, '아직 출발하는 열차가 없습니다. 첫 열차를 편성해 주세요.')));
+    return;
+  }
+  latest.forEach((g, i) => {
+    const p = place(g.era);
+    const cell = (...content) => el('td', {}, el('button', { type: 'button', tabIndex: -1, onclick: () => openRide(g) }, ...content));
+    const row = el('tr', { class: 'board-row', style: `--i:${i}` },
+      el('td', {}, el('button', { type: 'button', class: 'board-title', onclick: () => openRide(g), 'aria-label': `${g.title}, ${p.label}행 타기` }, g.title)),
+      cell(el('span', { class: 'board-dest', style: `--line:${lineColor(g.era)}` }, el('i'), p.station)),
+      cell(`${g.author}`),
+      cell(`${g.plays || 0}회`));
+    body.append(row);
+  });
+}
+
+function tickClock() {
+  const now = new Date();
+  $('#clock').textContent = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+}
+
+/* ───────── 노선도 ───────── */
+function renderLines() {
+  const wrap = $('#lines');
+  const count = (fn) => state.games.filter(fn).length;
+  const { line: fLine, era: fEra } = state.filter;
+  $('#routeAll').setAttribute('aria-pressed', String(!fLine && !fEra));
+
+  const station = (era, name) => {
+    const n = count((g) => g.era === era);
+    const btn = el('button', { type: 'button', class: `station${n ? '' : ' is-empty'}`, onclick: () => setFilter(null, era), 'aria-label': `${place(era).label}, 열차 ${n}편` },
+      el('span', { class: 'station-dot', 'aria-hidden': 'true' }, n ? String(n) : ''),
+      el('span', { class: 'station-name' }, name));
+    btn.setAttribute('aria-pressed', String(fEra === era));
+    return el('li', {}, btn);
+  };
+
+  const rows = state.lines.map((l) => {
+    const n = count((g) => place(g.era).lineId === l.id);
+    const name = el('button', { type: 'button', class: 'line-name', onclick: () => setFilter(l.id, null) },
+      `${l.name}선`, el('small', {}, `${n}편`));
+    name.setAttribute('aria-pressed', String(fLine === l.id && !fEra));
+    return el('div', { class: 'line', style: `--line:${LINE_COLORS[l.id]}` },
+      name,
+      el('ul', { class: 'stations' }, l.stations.map((st) => station(`${l.name}/${st}`, st))));
+  });
+
+  const transfer = el('div', { class: 'line line-transfer', style: `--line:${LINE_COLORS.transfer}` },
+    el('span', { class: 'line-name', style: 'cursor:default' }, '환승역'),
+    el('ul', { class: 'stations' }, station(state.transfer, `${state.transfer} (여러 노선을 오가는 열차)`)));
+
+  wrap.replaceChildren(...rows, transfer);
+}
+
+/* ───────── 승강장 ───────── */
+function renderTickets() {
+  const wrap = $('#tickets');
   const games = visibleGames();
-  wrap.replaceChildren();
+  const { line, era } = state.filter;
+  const where = era ? `${place(era).label}에` : line ? `${state.lines.find((l) => l.id === line)?.name}선에` : '모든 노선에';
 
-  const where = state.era === '전체' ? '오락실에' : `${state.era} 판에`;
-  $('#floorStatus').textContent = games.length
-    ? `${where} 게임기 ${games.length}대가 켜져 있습니다.`
+  $('#platformStatus').textContent = games.length
+    ? `${where} 열차 ${games.length}편이 서 있습니다.`
     : state.query
-      ? `‘${state.query}’에 맞는 게임기가 없습니다. 다른 이름으로 찾아보세요.`
-      : `${where} 아직 게임기가 없습니다.`;
+      ? `‘${state.query}’에 맞는 열차가 없습니다. 다른 이름으로 찾아보세요.`
+      : `${where} 아직 서는 열차가 없습니다.`;
 
-  for (const g of games) wrap.append(cabinet(g));
-
+  wrap.replaceChildren(...games.map(ticket));
   if (!state.query) {
-    const empty = el('div', { class: 'cabinet-empty' },
-      el('p', {}, games.length ? '이 자리가 비어 있습니다. 선생님의 게임을 들여놓아 주세요.' : '첫 번째 게임기를 들여놓아 주세요.'),
-      el('button', { class: 'btn btn-register', type: 'button', onclick: () => openSheet(null) }, '새 게임 들여놓기'));
-    wrap.append(empty);
+    wrap.append(el('div', { class: 'ticket-empty' },
+      el('p', {}, games.length ? '이 승강장에 선생님의 열차를 더 세워 주세요.' : '이 역에 설 첫 열차를 편성해 주세요.'),
+      el('button', { class: 'btn btn-primary', type: 'button', onclick: () => openSheet(null) }, '새 열차 편성하기')));
   }
 }
 
-function cabinet(g) {
-  const color = ERA_COLORS[g.era] || '#f5c542';
-  const screen = g.cover
+function ticket(g) {
+  const p = place(g.era);
+  const view = g.cover
     ? el('img', { src: g.cover, alt: `${g.title} 표지`, loading: 'lazy' })
-    : el('div', { class: 'cab-art', 'aria-hidden': 'true' }, el('span', {}, g.title));
+    : el('div', { class: 'window-art', 'aria-hidden': 'true' }, el('p', {}, el('small', {}, '다음 역'), el('span', {}, p.station)));
 
-  return el('article', { class: 'cabinet', style: `--era:${color}` },
-    el('header', { class: 'cab-marquee' },
-      el('p', { class: 'cab-era' }, `${g.era}${g.grade ? `, ${g.grade}` : ''}`),
-      el('h2', { class: 'cab-title' }, g.title)),
-    el('div', { class: 'cab-screen' }, screen),
-    el('p', { class: 'cab-summary' }, g.summary || '소개 글이 아직 없습니다.'),
-    el('div', { class: 'cab-panel' },
-      el('span', { class: 'stick', 'aria-hidden': 'true' }),
-      el('button', { class: 'btn btn-insert', type: 'button', onclick: () => openPlay(g) },
-        el('img', { src: 'coin.svg', alt: '' }), '한 판 하기'),
-      el('button', { class: 'btn btn-ghost btn-fix', type: 'button', onclick: () => askPin(g), 'aria-label': `${g.title} 고치기` }, '고치기')),
-    el('p', { class: 'cab-plate' },
-      el('span', {}, '만든 이 ', el('strong', {}, `${g.author} 선생님`)),
-      el('span', {}, `${g.plays || 0}판 플레이`)));
+  return el('article', { class: 'ticket', style: `--line:${lineColor(g.era)}` },
+    el('div', { class: 'ticket-band' },
+      el('b', {}, p.line),
+      el('span', {}, `${p.station} 행${g.grade ? `, ${g.grade}` : ''}`)),
+    el('div', { class: 'ticket-window' }, view),
+    el('div', { class: 'ticket-body' },
+      el('h3', { class: 'ticket-title' }, g.title),
+      el('p', { class: 'ticket-summary' }, g.summary || '소개 글이 아직 없습니다.')),
+    el('div', { class: 'ticket-stub' },
+      el('p', { class: 'ticket-meta' },
+        el('span', {}, '기관사 ', el('strong', {}, `${g.author} 선생님`)),
+        el('span', {}, `승차 ${g.plays || 0}회`)),
+      el('button', { class: 'btn btn-go', type: 'button', onclick: () => openRide(g) }, '승차권 끊기'),
+      el('button', { class: 'btn btn-quiet', type: 'button', onclick: () => askPin(g), 'aria-label': `${g.title} 고치기` }, '고치기')));
 }
 
-/* ───────── 플레이 ───────── */
+/* ───────── 개찰과 탑승 ───────── */
 function gameSrc(g) {
   return g.kind === 'link' ? g.url : `/play/${g.id}`;
 }
 
-function openPlay(g) {
+function openRide(g) {
+  const p = place(g.era);
   state.current = g;
-  $('#playEra').textContent = g.era;
-  $('#playTitle').textContent = g.title;
-  $('#playHowTo').textContent = g.howTo || g.summary || '게임 화면의 안내를 따라 즐겨 보세요.';
-  $('#playByline').textContent = `${g.author} 선생님이 만든 게임`;
-  $('#playNewWindow').href = gameSrc(g);
-  $('#insert').hidden = false;
-  $('#insert').classList.remove('dropping');
-  const frame = $('#playFrame');
+  const ride = $('#ride');
+  ride.style.setProperty('--line', lineColor(g.era));
+  $('#rideRoute').textContent = `${p.line} ${p.station} 행`;
+  $('#rideTitle').textContent = g.title;
+  $('#rideNewWindow').href = gameSrc(g);
+  $('#bigTicket').style.setProperty('--line', lineColor(g.era));
+  $('#bigTicketLine').textContent = `${p.line} ${g.title}`;
+  $('#bigTicketStation').textContent = p.station;
+  $('#bigTicketHowTo').textContent = g.howTo || g.summary || '게임 화면의 안내를 따라 즐겨 보세요.';
+  $('#bigTicketByline').textContent = `기관사 ${g.author} 선생님`;
+
+  const gate = $('#gate');
+  gate.hidden = false;
+  gate.classList.remove('punched');
+  const frame = $('#rideFrame');
   frame.hidden = true;
   frame.removeAttribute('src');
-  $('#play').hidden = false;
+  ride.hidden = false;
   document.body.style.overflow = 'hidden';
-  $('#coinButton').focus();
+  $('#gateButton').disabled = false;
+  $('#gateButton').focus();
 }
 
-function insertCoin() {
+function passGate() {
   const g = state.current;
   if (!g) return;
-  const insert = $('#insert');
+  const gate = $('#gate');
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  insert.classList.add('dropping');
+  $('#gateButton').disabled = true;
+  gate.classList.add('punched');
   api(`/api/games/${g.id}/play`, { method: 'POST' })
-    .then(({ plays }) => { g.plays = plays; renderCabinets(); })
+    .then(({ plays }) => { g.plays = plays; renderBoard(); renderTickets(); })
     .catch(() => {});
   setTimeout(() => {
-    insert.hidden = true;
-    const frame = $('#playFrame');
+    if (state.current !== g) return;
+    gate.hidden = true;
+    const frame = $('#rideFrame');
     frame.src = gameSrc(g);
     frame.hidden = false;
     frame.focus();
-  }, reduce ? 0 : 600);
+  }, reduce ? 300 : 1250);
 }
 
-function closePlay() {
-  const frame = $('#playFrame');
+function closeRide() {
+  const frame = $('#rideFrame');
   frame.removeAttribute('src');
   frame.hidden = true;
-  $('#play').hidden = true;
+  $('#ride').hidden = true;
   document.body.style.overflow = '';
   state.current = null;
 }
@@ -191,7 +250,7 @@ function closePlay() {
 /* ───────── 비밀번호 확인 ───────── */
 function askPin(g) {
   state.pinAfter = g;
-  $('#pinLead').textContent = `‘${g.title}’ 게임기를 고치려면 비밀번호를 적어 주세요.`;
+  $('#pinLead').textContent = `‘${g.title}’ 열차를 고치려면 비밀번호를 적어 주세요.`;
   $('#p-pin').value = '';
   $('#pinError').hidden = true;
   $('#pinDialog').showModal();
@@ -204,7 +263,7 @@ async function submitPin(e) {
   try {
     await api(`/api/games/${g.id}/verify`, { method: 'POST', body: { pin } });
     $('#pinDialog').close();
-    closePlay();
+    closeRide();
     openSheet(g, pin);
   } catch (err) {
     $('#pinError').textContent = err.message;
@@ -213,13 +272,18 @@ async function submitPin(e) {
   }
 }
 
-/* ───────── 신청서 ───────── */
+/* ───────── 편성 신청서 ───────── */
 function renderEraChoices() {
-  const box = $('#eraChoices');
-  box.replaceChildren(...state.eras.map((era) =>
-    el('label', { class: 'era-choice', style: `--era:${ERA_COLORS[era]}` },
-      el('input', { type: 'radio', name: 'era', value: era, required: true }),
-      el('span', {}, era))));
+  const choice = (era, name) => el('label', { class: 'era-choice' },
+    el('input', { type: 'radio', name: 'era', value: era, required: true }),
+    el('span', {}, name));
+  const group = (id, title, choices) => el('div', { class: 'era-group', style: `--line:${LINE_COLORS[id]}` },
+    el('span', { class: 'era-group-name' }, title),
+    el('div', { class: 'era-choices' }, choices));
+
+  $('#eraChoices').replaceChildren(
+    ...state.lines.map((l) => group(l.id, l.name, l.stations.map((st) => choice(`${l.name}/${st}`, st)))),
+    group('transfer', '환승역', [choice(state.transfer, state.transfer)]));
 }
 
 function setKind(kind) {
@@ -232,6 +296,11 @@ function showCover(src) {
   if (src) box.querySelector('img').src = src;
 }
 
+function checkEra(form, era) {
+  const input = era && [...form.querySelectorAll('input[name="era"]')].find((i) => i.value === era);
+  if (input) input.checked = true;
+}
+
 function openSheet(g, pin = '') {
   const form = $('#gameForm');
   form.reset();
@@ -241,8 +310,8 @@ function openSheet(g, pin = '') {
   $('#formError').hidden = true;
 
   const editing = Boolean(g);
-  $('#sheetTitle').textContent = editing ? `‘${g.title}’ 고치기` : '새 게임기 들여놓기';
-  $('#submitButton').textContent = editing ? '고친 내용 저장' : '게임기 들여놓기';
+  $('#sheetTitle').textContent = editing ? `‘${g.title}’ 고치기` : '새 열차 편성하기';
+  $('#submitButton').textContent = editing ? '고친 내용 저장' : '열차 편성하기';
   $('#deleteButton').hidden = !editing;
   $('#newPinField').hidden = !editing;
   form.querySelector('.pin-field').hidden = editing;
@@ -253,11 +322,9 @@ function openSheet(g, pin = '') {
   if (editing) {
     for (const key of ['title', 'author', 'grade', 'summary', 'howTo', 'url']) form.elements[key].value = g[key] || '';
     form.elements.kind.value = g.kind;
-    const eraInput = form.querySelector(`input[name="era"][value="${g.era}"]`);
-    if (eraInput) eraInput.checked = true;
-  } else if (state.era !== '전체') {
-    const eraInput = form.querySelector(`input[name="era"][value="${state.era}"]`);
-    if (eraInput) eraInput.checked = true;
+    checkEra(form, g.era);
+  } else {
+    checkEra(form, state.filter.era);
   }
   setKind(form.elements.kind.value);
   showCover(editing ? g.cover : '');
@@ -294,7 +361,7 @@ async function submitSheet(e) {
   };
   if (!body.title.trim()) return fail('게임 이름을 적어 주세요.', f.title);
   if (!body.author.trim()) return fail('만든 선생님 이름을 적어 주세요.', f.author);
-  if (!body.era) return fail('다루는 시대를 골라 주세요.', form.querySelector('input[name="era"]'));
+  if (!body.era) return fail('다루는 시대(노선과 역)를 골라 주세요.', form.querySelector('input[name="era"]'));
 
   if (body.kind === 'link') {
     if (!/^https?:\/\//.test(f.url.value.trim())) return fail('게임 주소를 https:// 로 시작하게 적어 주세요.', f.url);
@@ -325,11 +392,10 @@ async function submitSheet(e) {
     } else {
       const { game } = await api('/api/games', { method: 'POST', body });
       state.games.unshift(game);
-      toast(`‘${game.title}’ 게임기를 들여놓았습니다.`);
+      toast(`‘${game.title}’ 열차를 편성했습니다.`);
     }
     $('#sheet').close();
-    renderStages();
-    renderCabinets();
+    renderAll();
   } catch (err) {
     fail(err.message);
   } finally {
@@ -344,40 +410,59 @@ async function deleteGame() {
   // 브라우저 확인창 대신 버튼을 두 번 누르게 한다
   if (btn.dataset.armed !== 'true') {
     btn.dataset.armed = 'true';
-    btn.textContent = '한 번 더 누르면 치웁니다';
-    setTimeout(() => { btn.dataset.armed = ''; btn.textContent = '게임기 치우기'; }, 4000);
+    btn.textContent = '한 번 더 누르면 운행을 끝냅니다';
+    setTimeout(() => { btn.dataset.armed = ''; btn.textContent = '운행 끝내기'; }, 4000);
     return;
   }
   try {
     await api(`/api/games/${g.id}`, { method: 'DELETE', body: { pin: state.editPin } });
     state.games = state.games.filter((x) => x.id !== g.id);
     $('#sheet').close();
-    toast(`‘${g.title}’ 게임기를 치웠습니다.`);
-    renderStages();
-    renderCabinets();
+    toast(`‘${g.title}’ 열차 운행을 끝냈습니다.`);
+    renderAll();
   } catch (err) {
     $('#formError').textContent = err.message;
     $('#formError').hidden = false;
   } finally {
     btn.dataset.armed = '';
-    btn.textContent = '게임기 치우기';
+    btn.textContent = '운행 끝내기';
   }
 }
 
-/* ───────── 이벤트 연결 ───────── */
+/* ───────── 시작 ───────── */
+function renderAll() {
+  renderBoard();
+  renderLines();
+  renderTickets();
+}
+
+async function load() {
+  try {
+    const data = await api('/api/games');
+    state.lines = data.lines;
+    state.transfer = data.transfer;
+    state.games = data.games;
+    renderEraChoices();
+    renderAll();
+  } catch (e) {
+    $('#platformStatus').textContent = `열차 시간표를 불러오지 못했습니다. 잠시 뒤 새로고침해 주세요. (${e.message})`;
+  }
+}
+
 document.addEventListener('click', (e) => {
   const action = e.target.closest('[data-action]')?.dataset.action;
   if (!action) return;
   if (action === 'new') openSheet(null);
   if (action === 'close-sheet') $('#sheet').close();
   if (action === 'close-pin') $('#pinDialog').close();
-  if (action === 'close-play') closePlay();
+  if (action === 'close-ride') closeRide();
   if (action === 'edit-current' && state.current) askPin(state.current);
   if (action === 'delete') deleteGame();
   if (action === 'remove-cover') { state.cover = ''; $('#f-cover').value = ''; showCover(''); }
 });
 
-$('#coinButton').addEventListener('click', insertCoin);
+$('#routeAll').addEventListener('click', () => { state.filter = { line: null, era: null }; renderLines(); renderTickets(); });
+$('#gateButton').addEventListener('click', passGate);
 $('#gameForm').addEventListener('submit', submitSheet);
 $('#pinForm').addEventListener('submit', submitPin);
 $('#gameForm').addEventListener('change', async (e) => {
@@ -394,9 +479,11 @@ $('#gameForm').addEventListener('change', async (e) => {
     showCover(state.cover);
   }
 });
-$('#search').addEventListener('input', (e) => { state.query = e.target.value; renderCabinets(); });
+$('#search').addEventListener('input', (e) => { state.query = e.target.value; renderTickets(); });
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && !$('#play').hidden && !document.querySelector('dialog[open]')) closePlay();
+  if (e.key === 'Escape' && !$('#ride').hidden && !document.querySelector('dialog[open]')) closeRide();
 });
 
+tickClock();
+setInterval(tickClock, 30 * 1000);
 load();

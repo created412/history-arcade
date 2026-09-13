@@ -3,91 +3,121 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>역사오락실</title>
-  <meta name="description" content="미디어와 역사 모임 선생님들이 만든 역사 게임을 올리고, 고치고, 함께 즐기는 오락실">
-  <link rel="icon" href="coin.svg" type="image/svg+xml">
+  <title>시간여행 역사(驛舍)</title>
+  <meta name="description" content="미디어와 역사수업 실천모임 선생님들이 만든 역사 게임을 시대별 노선에 태워 보내는 시간여행 정거장">
+  <meta name="theme-color" content="#203a1b">
+  <link rel="icon" href="ticket.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Black+Han+Sans&display=swap">
-  <meta name="theme-color" content="#203a1b">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <a class="skip" href="#floor">게임기 목록으로 건너뛰기</a>
+  <a class="skip" href="#platform">열차 목록으로 건너뛰기</a>
 
-  <header class="storefront">
-    <div class="sign">
-      <div class="sign-board">
-        <p class="sign-latin cover-text" lang="en">media&amp;history</p>
-        <h1 class="sign-title cover-text">역사오락실</h1>
-        <p class="sign-group cover-text">미디어와 역사수업 실천모임</p>
+  <header class="concourse">
+    <!-- 역명판: 이전 역 ← 지금 역 → 다음 역 -->
+    <div class="nameplate">
+      <p class="nameplate-latin cover-text" lang="en">media&amp;history</p>
+      <div class="nameplate-board">
+        <span class="nameplate-prev" aria-hidden="true">← 오늘</span>
+        <h1 class="nameplate-name">
+          <span class="cover-text">역사</span>
+          <small class="nameplate-hanja">歷史 / 驛舍</small>
+        </h1>
+        <span class="nameplate-next" aria-hidden="true">옛날 →</span>
       </div>
+      <p class="nameplate-group cover-text">미디어와 역사수업 실천모임</p>
     </div>
-    <p class="storefront-note">
-      선생님들이 수업을 위해 직접 만든 역사 게임을 모아 둔 곳입니다.
-      마음에 드는 게임기에 엽전을 넣고 한 판 즐겨 보세요.
-      직접 만든 게임이 있다면 새 게임기로 들여놓을 수 있습니다.
-    </p>
-    <button class="btn btn-register" type="button" data-action="new">새 게임 들여놓기</button>
+
+    <section class="departures" aria-labelledby="departuresTitle">
+      <div class="departures-head">
+        <h2 id="departuresTitle">출발 안내</h2>
+        <p class="departures-clock" id="clock" aria-hidden="true"></p>
+      </div>
+      <div class="board-scroll">
+        <table class="board">
+          <thead>
+            <tr><th scope="col">열차</th><th scope="col">행선지</th><th scope="col">기관사</th><th scope="col">승차</th></tr>
+          </thead>
+          <tbody id="board"></tbody>
+        </table>
+      </div>
+      <div class="departures-foot">
+        <p>시간여행 역사는 선생님들이 만든 역사 게임을 시대별 노선에 태워 보내는 정거장입니다.</p>
+        <button class="btn btn-primary" type="button" data-action="new">새 열차 편성하기</button>
+      </div>
+    </section>
   </header>
 
-  <nav class="stage-select" aria-label="시대 고르기">
-    <div class="stage-list" id="stageList" role="tablist"></div>
-    <label class="search">
-      <span class="visually-hidden">게임 이름이나 선생님 이름으로 찾기</span>
-      <input id="search" type="search" placeholder="게임·선생님 이름으로 찾기" autocomplete="off">
-    </label>
+  <nav class="route-map" aria-labelledby="routeTitle">
+    <div class="route-head">
+      <h2 id="routeTitle">노선도</h2>
+      <button class="route-all" type="button" id="routeAll" aria-pressed="true">모든 열차 보기</button>
+      <label class="search">
+        <span class="visually-hidden">게임 이름이나 선생님 이름으로 찾기</span>
+        <input id="search" type="search" placeholder="게임·선생님 이름으로 찾기" autocomplete="off">
+      </label>
+    </div>
+    <div class="lines" id="lines"></div>
   </nav>
 
-  <main id="floor" class="floor" aria-live="polite">
-    <p class="floor-status" id="floorStatus">게임기에 전원을 넣는 중…</p>
-    <div class="cabinets" id="cabinets"></div>
+  <main id="platform" class="platform">
+    <p class="platform-status" id="platformStatus" aria-live="polite">열차 시간표를 불러오는 중입니다.</p>
+    <div class="tickets" id="tickets"></div>
   </main>
 
   <footer class="footer">
-    <p>역사오락실은 ‘미디어와 역사’ 모임의 공동 작업 공간입니다. 게임을 올릴 때 정한 비밀번호로 언제든 고치거나 치울 수 있습니다.</p>
+    <p>시간여행 역사는 ‘미디어와 역사수업 실천모임’의 공동 작업 공간입니다. 게임을 올릴 때 정한 비밀번호로 언제든 고치거나 운행을 끝낼 수 있습니다.</p>
   </footer>
 
-  <!-- 플레이 화면 -->
-  <div class="play" id="play" hidden role="dialog" aria-modal="true" aria-labelledby="playTitle">
-    <div class="play-bar">
-      <div class="play-info">
-        <p class="play-era" id="playEra"></p>
-        <h2 class="play-title" id="playTitle"></h2>
+  <!-- 개찰과 탑승 -->
+  <div class="ride" id="ride" hidden role="dialog" aria-modal="true" aria-labelledby="rideTitle">
+    <div class="ride-bar">
+      <div class="ride-info">
+        <p class="ride-route" id="rideRoute"></p>
+        <h2 class="ride-title" id="rideTitle"></h2>
       </div>
-      <div class="play-actions">
-        <a class="btn btn-ghost" id="playNewWindow" target="_blank" rel="noopener">새 창에서 열기</a>
+      <div class="ride-actions">
+        <a class="btn btn-ghost" id="rideNewWindow" target="_blank" rel="noopener">새 창에서 열기</a>
         <button class="btn btn-ghost" type="button" data-action="edit-current">고치기</button>
-        <button class="btn btn-exit" type="button" data-action="close-play">나가기</button>
+        <button class="btn btn-exit" type="button" data-action="close-ride">내리기</button>
       </div>
     </div>
-    <div class="play-stage">
-      <div class="insert" id="insert">
-        <div class="insert-screen">
-          <p class="insert-howto-label">이렇게 즐겨요</p>
-          <p class="insert-howto" id="playHowTo"></p>
-          <p class="insert-byline" id="playByline"></p>
-        </div>
-        <div class="coin-slot-wrap">
-          <button class="coin-button" type="button" id="coinButton" aria-label="엽전 넣고 시작하기">
-            <img class="coin" src="coin.svg" alt="" width="96" height="96">
-          </button>
-          <div class="coin-slot" aria-hidden="true"><span></span></div>
-          <p class="insert-cta">엽전을 눌러 넣으면 시작합니다</p>
-        </div>
+    <div class="ride-stage">
+      <div class="gate" id="gate">
+        <article class="big-ticket" id="bigTicket">
+          <div class="big-ticket-band" id="bigTicketBand">
+            <span id="bigTicketLine"></span>
+            <span>승차권</span>
+          </div>
+          <div class="big-ticket-body">
+            <div class="big-ticket-route">
+              <div><small>출발</small><b>오늘</b></div>
+              <span class="big-ticket-arrow" aria-hidden="true">▶</span>
+              <div><small>도착</small><b id="bigTicketStation"></b></div>
+            </div>
+            <p class="big-ticket-howto-label">이렇게 즐겨요</p>
+            <p class="big-ticket-howto" id="bigTicketHowTo"></p>
+            <p class="big-ticket-byline" id="bigTicketByline"></p>
+          </div>
+          <span class="punch" aria-hidden="true"></span>
+          <span class="stamp" aria-hidden="true">개찰</span>
+        </article>
+        <button class="btn btn-primary btn-gate" type="button" id="gateButton">개찰하고 타기</button>
       </div>
-      <iframe class="play-frame" id="playFrame" title="게임 화면" hidden
+      <iframe class="ride-frame" id="rideFrame" title="게임 화면" hidden
         allow="fullscreen; autoplay; gamepad"
         sandbox="allow-scripts allow-forms allow-popups allow-modals allow-pointer-lock allow-downloads allow-same-origin"></iframe>
     </div>
   </div>
 
-  <!-- 등록·수정 신청서 -->
+  <!-- 편성 신청서 -->
   <dialog class="sheet" id="sheet" aria-labelledby="sheetTitle">
     <form id="gameForm" method="dialog" novalidate>
       <header class="sheet-head">
-        <h2 id="sheetTitle">새 게임기 들여놓기</h2>
+        <h2 id="sheetTitle">새 열차 편성하기</h2>
         <button class="sheet-close" type="button" data-action="close-sheet" aria-label="닫기">✕</button>
       </header>
 
@@ -103,12 +133,12 @@
           </div>
           <div class="field">
             <label for="f-grade">알맞은 학년</label>
-            <input id="f-grade" name="grade" maxlength="20" placeholder="예) 중2, 고등 한국사">
+            <input id="f-grade" name="grade" maxlength="20" placeholder="예) 중2, 고등 세계사">
           </div>
         </div>
         <fieldset class="field">
-          <legend>다루는 시대</legend>
-          <div class="era-choices" id="eraChoices"></div>
+          <legend>다루는 시대 <small>(노선과 역)</small></legend>
+          <div class="era-groups" id="eraChoices"></div>
         </fieldset>
         <div class="field">
           <label for="f-summary">한 줄 소개</label>
@@ -136,7 +166,7 @@
         <div class="field" data-kind="link" hidden>
           <label for="f-url">게임 주소</label>
           <input id="f-url" name="url" type="url" placeholder="https://">
-          <p class="hint">일부 사이트는 오락실 화면 안에서 열리지 않습니다. 그럴 땐 ‘새 창에서 열기’로 즐길 수 있습니다.</p>
+          <p class="hint">일부 사이트는 이 화면 안에서 열리지 않습니다. 그럴 땐 ‘새 창에서 열기’로 즐길 수 있습니다.</p>
         </div>
 
         <div class="field">
@@ -149,9 +179,9 @@
         </div>
 
         <div class="field pin-field">
-          <label for="f-pin" id="pinLabel">수정용 비밀번호</label>
+          <label for="f-pin">수정용 비밀번호</label>
           <input id="f-pin" name="pin" type="password" minlength="4" autocomplete="new-password" placeholder="4자 이상">
-          <p class="hint" id="pinHint">나중에 이 게임을 고치거나 치울 때 필요합니다. 잊지 않게 적어 두세요.</p>
+          <p class="hint">나중에 이 게임을 고치거나 운행을 끝낼 때 필요합니다. 잊지 않게 적어 두세요.</p>
         </div>
         <div class="field" id="newPinField" hidden>
           <label for="f-newPin">비밀번호 바꾸기 <small>(선택)</small></label>
@@ -162,10 +192,10 @@
       </div>
 
       <footer class="sheet-foot">
-        <button class="btn btn-danger" type="button" id="deleteButton" data-action="delete" hidden>게임기 치우기</button>
+        <button class="btn btn-danger" type="button" id="deleteButton" data-action="delete" hidden>운행 끝내기</button>
         <span class="spacer"></span>
-        <button class="btn btn-ghost" type="button" data-action="close-sheet">그만두기</button>
-        <button class="btn btn-register" type="submit" id="submitButton">게임기 들여놓기</button>
+        <button class="btn btn-quiet" type="button" data-action="close-sheet">그만두기</button>
+        <button class="btn btn-go" type="submit" id="submitButton">열차 편성하기</button>
       </footer>
     </form>
   </dialog>
@@ -187,8 +217,8 @@
       </div>
       <footer class="sheet-foot">
         <span class="spacer"></span>
-        <button class="btn btn-ghost" type="button" data-action="close-pin">그만두기</button>
-        <button class="btn btn-register" type="submit">확인</button>
+        <button class="btn btn-quiet" type="button" data-action="close-pin">그만두기</button>
+        <button class="btn btn-go" type="submit">확인</button>
       </footer>
     </form>
   </dialog>
