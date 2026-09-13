@@ -749,9 +749,8 @@ async function renderOffice() {
           el('button', {
             class: 'btn btn-quiet btn-small', type: 'button',
             onclick: async () => {
-              const pin = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
               try {
-                await api(`/api/classes/${c.code}/students/${s.id}/pin`, { method: 'POST', body: { pin } });
+                const { pin } = await api(`/api/classes/${c.code}/students/${s.id}/pin`, { method: 'POST' });
                 // 금방 사라지는 알림 대신, 선생님이 받아 적을 때까지 남겨 둔다
                 $('#officeNotice').replaceChildren(`${c.name} ${s.name} 학생의 새 비밀번호는 `, el('b', {}, pin), '입니다. 학생에게 알려 주세요.');
                 $('#officeNotice').hidden = false;

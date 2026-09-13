@@ -219,11 +219,11 @@ function createPassengers({ file, hashPin, checkPin, onChange }) {
         const student = cls.students.find((s) => s.id === c);
         if (!student) throw httpError(404, '그 학생을 찾을 수 없습니다.');
         if (req.method === 'POST' && d === 'pin') {
-          const body = await readBody(req);
-          if (!/^\d{4}$/.test(String(body.pin || ''))) throw httpError(400, '새 비밀번호는 숫자 4자리로 적어 주세요.');
-          student.pinHash = hashPin(String(body.pin));
+          // 새 비밀번호는 서버가 안전한 난수로 만들어 한 번만 돌려준다
+          const pin = String(crypto.randomInt(0, 10000)).padStart(4, '0');
+          student.pinHash = hashPin(pin);
           await save(`학생 비밀번호 새로 정하기: ${student.name}`, { now: true });
-          return send(res, 200, { ok: true });
+          return send(res, 200, { ok: true, pin });
         }
         if (req.method === 'DELETE' && !d) {
           cls.students = cls.students.filter((s) => s !== student);
