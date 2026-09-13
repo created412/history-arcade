@@ -62,16 +62,26 @@ function createPassengers({ file, hashPin, checkPin, onChange }) {
     return who;
   }
 
-  /* ───── 교사 비밀번호 시도 제한 ───── */
-  const failures = new Map(); // ip → { count, until }
-  function checkThrottle(ip) {
-    const f = failures.get(ip);
-    if (f && f.until > Date.now() && f.count >= 8) throw httpError(429, '비밀번호를 여러 번 틀렸습니다. 10분 뒤에 다시 시도해 주세요.');
+  /* ───── 비밀번호 시도 제한 ───── */
+  // 요청한 쪽 IP. Render 같은 프록시 뒤에서는 X-Forwarded-For의 맨 앞 값을 요청자가 꾸밀 수 있으므로,
+  // 프록시가 마지막에 덧붙인 맨 뒤 값을 쓴다.
+  function clientIp(req) {
+    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').map((s) => s.trim()).filter(Boolean);
+    if (process.env.RENDER && forwarded.length) return forwarded[forwarded.length - 1];
+    return req.socket.remoteAddress;
   }
-  function recordFailure(ip) {
-    const f = failures.get(ip);
+
+  const failures = new Map(); // key → { count, until }
+  const LIMITS = { teacher: 8, student: 8, studentIp: 30 };
+  function checkThrottle(key, limit) {
+    const f = failures.get(key);
+    if (f && f.until > Date.now() && f.count >= limit) throw httpError(429, '비밀번호를 여러 번 틀렸습니다. 10분 뒤에 다시 시도해 주세요.');
+  }
+  function recordFailure(key) {
+    const f = failures.get(key);
     const fresh = !f || f.until < Date.now();
-    failures.set(ip, { count: fresh ? 1 : f.count + 1, until: Date.now() + 10 * 60 * 1000 });
+    failures.set(key, { count: fresh ? 1 : f.count + 1, until: Date.now() + 10 * 60 * 1000 });
+    if (failures.size > 5000) for (const [k, v] of failures) if (v.until < Date.now()) failures.delete(k);
   }
 
   /* ───── 보여 줄 모양 ───── */
@@ -144,17 +154,17 @@ function createPassengers({ file, hashPin, checkPin, onChange }) {
       if (req.method === 'GET' && !a) return send(res, 200, me(identify(req)));
 
       if (req.method === 'POST' && a === 'teacher') {
-        const ip = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.socket.remoteAddress;
-        checkThrottle(ip);
+        const key = `teacher:${clientIp(req)}`;
+        checkThrottle(key, LIMITS.teacher);
         if (!teacherPassword) throw httpError(503, '교사 비밀번호가 아직 설정되지 않았습니다. 관리자가 TEACHER_PASSWORD를 정해야 합니다.');
         const body = await readBody(req);
         const given = crypto.createHash('sha256').update(String(body.password || '')).digest();
         const want = crypto.createHash('sha256').update(teacherPassword).digest();
         if (!crypto.timingSafeEqual(given, want)) {
-          recordFailure(ip);
+          recordFailure(key);
           throw httpError(403, '교사 비밀번호가 맞지 않습니다.');
         }
-        failures.delete(ip);
+        failures.delete(key);
         return send(res, 200, { token: sign({ role: 'teacher', exp: Date.now() + TEACHER_SESSION_MS }), me: { role: 'teacher' } });
       }
 
@@ -171,7 +181,17 @@ function createPassengers({ file, hashPin, checkPin, onChange }) {
         let student = cls.students.find((s) => s.name === name);
         let created = false;
         if (student) {
-          if (!checkPin(pin, student.pinHash)) throw httpError(403, '비밀번호가 맞지 않습니다. 잊었다면 선생님께 새로 정해 달라고 하세요.');
+          // 4자리 비밀번호는 경우의 수가 적으므로, 학생 한 명과 IP 모두에 시도 횟수를 건다
+          const ipKey = `student-ip:${clientIp(req)}`;
+          const accountKey = `student:${cls.code}:${student.id}`;
+          checkThrottle(ipKey, LIMITS.studentIp);
+          checkThrottle(accountKey, LIMITS.student);
+          if (!checkPin(pin, student.pinHash)) {
+            recordFailure(ipKey);
+            recordFailure(accountKey);
+            throw httpError(403, '비밀번호가 맞지 않습니다. 잊었다면 선생님께 새로 정해 달라고 하세요.');
+          }
+          failures.delete(accountKey);
         } else {
           student = {
             id: crypto.randomBytes(6).toString('hex'), name, pinHash: hashPin(pin),
@@ -222,6 +242,7 @@ function createPassengers({ file, hashPin, checkPin, onChange }) {
           // 새 비밀번호는 서버가 안전한 난수로 만들어 한 번만 돌려준다
           const pin = String(crypto.randomInt(0, 10000)).padStart(4, '0');
           student.pinHash = hashPin(pin);
+          failures.delete(`student:${cls.code}:${student.id}`); // 잠긴 학생도 새 비밀번호로 바로 들어오게
           await save(`학생 비밀번호 새로 정하기: ${student.name}`, { now: true });
           return send(res, 200, { ok: true, pin });
         }
