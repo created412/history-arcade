@@ -5,6 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { createGithubStore } = require('./github-store');
+const { createPassengers } = require('./passengers');
 
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
@@ -12,6 +13,7 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const GAMES_DIR = path.join(DATA_DIR, 'games');
 const DB_FILE = path.join(DATA_DIR, 'games.json');
+const CLASSES_FILE = path.join(DATA_DIR, 'classes.json');
 const MAX_BODY = 12 * 1024 * 1024; // 12MB (HTML 파일 + 표지 그림)
 
 // 노선(대분류)과 역(시대). 게임의 era 값은 '노선/역' 또는 환승역 '여러 시대'
@@ -21,6 +23,9 @@ const LINES = [
   { id: 'west', name: '서양사', stations: ['고대', '중세', '근대', '현대'] },
 ];
 const TRANSFER = '여러 시대';
+// 게임마다 선생님이 정하는 차비와 클리어 보상 (엽전 닢)
+const FARE = { min: 0, max: 5, default: 1 };
+const REWARD = { min: 0, max: 10, default: 2 };
 const ERAS = [...LINES.flatMap((l) => l.stations.map((st) => `${l.name}/${st}`)), TRANSFER];
 
 // 예전 한 줄짜리 시대 이름을 새 분류로 옮긴다
@@ -70,7 +75,7 @@ async function prepareData() {
   if (store) {
     const files = await store.loadAll();
     for (const [rel, buf] of Object.entries(files)) {
-      if (rel !== 'games.json' && !/^games\/[a-f0-9]{12}\.html$/.test(rel)) continue;
+      if (!['games.json', 'classes.json'].includes(rel) && !/^games\/[a-f0-9]{12}\.html$/.test(rel)) continue;
       fs.writeFileSync(path.join(DATA_DIR, rel), buf);
     }
     if (!files['games.json']) await store.save(seedGames(), '견본 게임 들여놓기');
@@ -81,12 +86,20 @@ async function prepareData() {
   } else {
     migrateEras();
   }
+  passengers = createPassengers({
+    file: CLASSES_FILE, hashPin, checkPin,
+    onChange: (message, now) => (now ? persist({}, message) : persistLater()),
+  });
+  if (!passengers.teacherReady) console.warn('TEACHER_PASSWORD가 없어 교사로 들어올 수 없습니다.');
 }
+
+let passengers = null;
 
 // 바뀐 파일을 보관소에 올린다. 로컬 실행(보관소 없음)이면 아무 일도 하지 않는다.
 async function persist(changes, message) {
   if (!store) return;
   changes['games.json'] = fs.readFileSync(DB_FILE, 'utf8');
+  if (fs.existsSync(CLASSES_FILE)) changes['classes.json'] = fs.readFileSync(CLASSES_FILE, 'utf8');
   try {
     await store.save(changes, message);
   } catch (e) {
@@ -94,14 +107,14 @@ async function persist(changes, message) {
   }
 }
 
-// 플레이 횟수는 판마다 커밋하지 않고 10분에 한 번 모아서 올린다
-let playsTimer = null;
-function persistPlaysLater() {
-  if (!store || playsTimer) return;
-  playsTimer = setTimeout(() => {
-    playsTimer = null;
-    persist({}, '플레이 횟수 기록');
-  }, 10 * 60 * 1000);
+// 승차 횟수와 엽전은 판마다 커밋하지 않고 2분에 한 번 모아서 올린다
+let laterTimer = null;
+function persistLater() {
+  if (!store || laterTimer) return;
+  laterTimer = setTimeout(() => {
+    laterTimer = null;
+    persist({}, '승차·엽전 기록');
+  }, 2 * 60 * 1000);
 }
 
 const MIME = {
@@ -139,7 +152,13 @@ function checkPin(pin, stored) {
 // 비밀번호 해시는 절대 밖으로 내보내지 않는다
 function publicGame(g) {
   const { pinHash, ...rest } = g;
-  return rest;
+  return { ...rest, ...fareOf(g) };
+}
+
+// 링크 게임은 클리어 신호를 보낼 수 없으므로 무료로 태운다
+function fareOf(g) {
+  if (g.kind === 'link') return { fare: 0, reward: 0 };
+  return { fare: g.fare ?? FARE.default, reward: g.reward ?? REWARD.default };
 }
 
 function send(res, status, body, headers = {}) {
@@ -221,6 +240,15 @@ function validate(input, partial) {
     }
   }
 
+  const coins = (key, range, label) => {
+    if (input[key] === undefined || input[key] === '') return;
+    const n = Number(input[key]);
+    if (!Number.isInteger(n) || n < range.min || n > range.max) throw err(`${label}는 ${range.min}~${range.max}닢 사이로 정해 주세요.`);
+    out[key] = n;
+  };
+  coins('fare', FARE, '차비');
+  coins('reward', REWARD, '클리어 보상');
+
   if (input.cover !== undefined) {
     const c = String(input.cover);
     if (c && !/^data:image\/(png|jpeg|gif|webp);base64,/.test(c)) throw err('표지 그림은 PNG, JPG, GIF, WEBP만 쓸 수 있습니다.');
@@ -235,7 +263,11 @@ function gameFile(id) {
 }
 
 async function handleApi(req, res, url) {
-  const parts = url.pathname.split('/').filter(Boolean); // ['api','games',id?]
+  const parts = url.pathname.split('/').filter(Boolean); // ['api', area, ...]
+  if (parts[1] === 'session' || parts[1] === 'classes') return passengers.handle(req, res, parts, { readBody, send });
+  if (parts[1] === 'rides' && req.method === 'POST' && parts[3] === 'clear') {
+    return send(res, 200, passengers.clearRide(req, parts[2]));
+  }
   if (parts[1] !== 'games') return send(res, 404, { error: '없는 주소입니다.' });
   const id = parts[2];
   const games = readDb();
@@ -245,6 +277,7 @@ async function handleApi(req, res, url) {
   }
 
   if (req.method === 'POST' && !id) {
+    passengers.requireTeacher(req);
     const body = await readBody(req);
     const pin = String(body.pin || '');
     if (pin.length < 4) return send(res, 400, { error: '수정용 비밀번호는 4자 이상으로 정해 주세요.' });
@@ -261,6 +294,8 @@ async function handleApi(req, res, url) {
       kind: data.kind,
       url: data.kind === 'link' ? data.url : '',
       cover: data.cover || '',
+      fare: data.fare ?? FARE.default,
+      reward: data.reward ?? REWARD.default,
       plays: 0,
       createdAt: now,
       updatedAt: now,
@@ -277,12 +312,17 @@ async function handleApi(req, res, url) {
   if (idx === -1) return send(res, 404, { error: '그 게임을 찾을 수 없습니다.' });
   const game = games[idx];
 
-  if (req.method === 'POST' && parts[3] === 'play') {
+  // 개찰: 학생은 차비를 내고, 선생님은 그냥 탄다
+  if (req.method === 'POST' && parts[3] === 'ride') {
+    const ride = passengers.startRide(req, publicGame(game));
     game.plays = (game.plays || 0) + 1;
     writeDb(games);
-    persistPlaysLater();
-    return send(res, 200, { plays: game.plays });
+    persistLater();
+    return send(res, 200, { ...ride, plays: game.plays });
   }
+
+  // 게임 고치기·치우기는 선생님으로 들어온 뒤, 그 게임의 비밀번호까지 맞아야 한다
+  if (req.method !== 'GET') passengers.requireTeacher(req);
 
   if (req.method === 'POST' && parts[3] === 'verify') {
     const body = await readBody(req);
@@ -379,8 +419,8 @@ prepareData()
     process.exit(1);
   });
 
-// 호스팅이 서버를 끌 때 모아 둔 플레이 횟수를 먼저 올린다
+// 호스팅이 서버를 끌 때 모아 둔 승차·엽전 기록을 먼저 올린다
 process.on('SIGTERM', async () => {
-  if (playsTimer) { clearTimeout(playsTimer); await persist({}, '플레이 횟수 기록'); }
+  if (laterTimer) { clearTimeout(laterTimer); await persist({}, '승차·엽전 기록'); }
   process.exit(0);
 });

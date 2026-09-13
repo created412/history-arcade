@@ -16,6 +16,11 @@
 <body>
   <a class="skip" href="#platform">열차 목록으로 건너뛰기</a>
 
+  <!-- 승객 카드: 누구로 들어왔는지, 엽전이 몇 닢인지 -->
+  <div class="passenger-bar">
+    <div class="passenger" id="passenger" aria-live="polite"></div>
+  </div>
+
   <header class="concourse">
     <!-- 역명판: 이전 역 ← 지금 역 → 다음 역 -->
     <div class="nameplate">
@@ -79,9 +84,10 @@
         <p class="ride-route" id="rideRoute"></p>
         <h2 class="ride-title" id="rideTitle"></h2>
       </div>
+      <p class="ride-purse" id="ridePurse" hidden></p>
       <div class="ride-actions">
         <a class="btn btn-ghost" id="rideNewWindow" target="_blank" rel="noopener">새 창에서 열기</a>
-        <button class="btn btn-ghost" type="button" data-action="edit-current">고치기</button>
+        <button class="btn btn-ghost" type="button" data-action="edit-current" data-teacher-only>고치기</button>
         <button class="btn btn-exit" type="button" data-action="close-ride">내리기</button>
       </div>
     </div>
@@ -105,7 +111,21 @@
           <span class="punch" aria-hidden="true"></span>
           <span class="stamp" aria-hidden="true">개찰</span>
         </article>
+        <!-- 요금함: 학생이 차비로 엽전을 넣는 곳 -->
+        <div class="farebox" id="farebox">
+          <div class="farebox-slot" aria-hidden="true">
+            <img class="farebox-coin" src="coin.svg" alt="" width="56" height="56">
+            <span class="farebox-mouth"></span>
+          </div>
+          <p class="farebox-text" id="fareText"></p>
+        </div>
         <button class="btn btn-primary btn-gate" type="button" id="gateButton">개찰하고 타기</button>
+        <p class="gate-note" id="gateNote" hidden></p>
+      </div>
+      <div class="arrival" id="arrival" role="status" hidden>
+        <img src="coin.svg" alt="" width="40" height="40">
+        <p id="arrivalText"></p>
+        <button class="btn btn-exit btn-small" type="button" data-action="close-arrival">계속 보기</button>
       </div>
       <iframe class="ride-frame" id="rideFrame" title="게임 화면" hidden
         allow="fullscreen; autoplay; gamepad"
@@ -169,6 +189,27 @@
           <p class="hint">일부 사이트는 이 화면 안에서 열리지 않습니다. 그럴 땐 ‘새 창에서 열기’로 즐길 수 있습니다.</p>
         </div>
 
+        <fieldset class="field fare-field" id="fareField">
+          <legend>엽전 <small>(학생에게만 적용, 선생님은 무료)</small></legend>
+          <div class="field-row">
+            <div class="field">
+              <label for="f-fare">차비</label>
+              <div class="coin-input"><input id="f-fare" name="fare" type="number" min="0" max="5" step="1" value="1"><span>닢</span></div>
+            </div>
+            <div class="field">
+              <label for="f-reward">클리어 보상</label>
+              <div class="coin-input"><input id="f-reward" name="reward" type="number" min="0" max="10" step="1" value="2"><span>닢</span></div>
+            </div>
+          </div>
+          <p class="hint" id="fareHint">학생은 차비를 내고 타고, 게임이 클리어 신호를 보내면 보상을 받습니다.</p>
+          <details class="signal-guide">
+            <summary>게임에 클리어 신호 넣는 법</summary>
+            <p>게임을 깼을 때 아래 한 줄이 실행되게 하면 학생에게 보상이 들어갑니다. 한 번 탈 때 한 번만 받습니다.</p>
+            <pre><code id="signalCode">parent.postMessage({ type: 'history-station:clear' }, '*');</code></pre>
+            <button class="btn btn-quiet btn-small" type="button" data-action="copy-signal">코드 복사</button>
+          </details>
+        </fieldset>
+
         <div class="field">
           <label for="f-cover">표지 그림 <small>(선택)</small></label>
           <input id="f-cover" name="cover" type="file" accept="image/png,image/jpeg,image/gif,image/webp">
@@ -221,6 +262,85 @@
         <button class="btn btn-go" type="submit">확인</button>
       </footer>
     </form>
+  </dialog>
+
+  <!-- 들어오기: 학생 / 선생님 -->
+  <dialog class="sheet sheet-small" id="loginDialog" aria-labelledby="loginTitle">
+    <div class="sheet-wrap">
+      <header class="sheet-head">
+        <h2 id="loginTitle">정거장에 들어오기</h2>
+        <button class="sheet-close" type="button" data-action="close-login" aria-label="닫기">✕</button>
+      </header>
+      <div class="login-tabs" role="tablist">
+        <button type="button" role="tab" id="tabStudent" aria-controls="studentForm" aria-selected="true" data-login-tab="student">학생</button>
+        <button type="button" role="tab" id="tabTeacher" aria-controls="teacherForm" aria-selected="false" data-login-tab="teacher">선생님</button>
+      </div>
+      <p class="login-reason" id="loginReason" hidden></p>
+
+      <form id="studentForm" role="tabpanel" aria-labelledby="tabStudent" novalidate>
+        <div class="sheet-body">
+          <div class="field">
+            <label for="s-code">반 코드</label>
+            <input id="s-code" class="code-input" maxlength="6" autocomplete="off" autocapitalize="characters" placeholder="선생님께 받은 6자리">
+          </div>
+          <div class="field">
+            <label for="s-name">이름</label>
+            <input id="s-name" maxlength="20" autocomplete="off" placeholder="예) 12번 김철수">
+          </div>
+          <div class="field">
+            <label for="s-pin">비밀번호 <small>(숫자 4자리)</small></label>
+            <input id="s-pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off">
+            <p class="hint">처음 들어오면 적은 비밀번호로 승객 카드가 만들어지고 엽전 3닢을 받습니다.</p>
+          </div>
+          <p class="form-error" id="studentError" role="alert" hidden></p>
+        </div>
+        <footer class="sheet-foot">
+          <span class="spacer"></span>
+          <button class="btn btn-go" type="submit">학생으로 들어오기</button>
+        </footer>
+      </form>
+
+      <form id="teacherForm" role="tabpanel" aria-labelledby="tabTeacher" novalidate hidden>
+        <div class="sheet-body">
+          <div class="field">
+            <label for="t-password">교사 비밀번호</label>
+            <input id="t-password" type="password" autocomplete="current-password">
+            <p class="hint">‘미디어와 역사수업 실천모임’ 선생님들이 함께 쓰는 비밀번호입니다. 선생님은 엽전 없이 타고, 열차 편성과 반 관리를 할 수 있습니다.</p>
+          </div>
+          <p class="form-error" id="teacherError" role="alert" hidden></p>
+        </div>
+        <footer class="sheet-foot">
+          <span class="spacer"></span>
+          <button class="btn btn-go" type="submit">선생님으로 들어오기</button>
+        </footer>
+      </form>
+    </div>
+  </dialog>
+
+  <!-- 역무실: 반 만들기와 학생 엽전 현황 -->
+  <dialog class="sheet sheet-wide" id="officeDialog" aria-labelledby="officeTitle">
+    <div class="sheet-wrap">
+      <header class="sheet-head">
+        <h2 id="officeTitle">역무실</h2>
+        <button class="sheet-close" type="button" data-action="close-office" aria-label="닫기">✕</button>
+      </header>
+      <div class="sheet-body">
+        <form class="class-new" id="classForm" novalidate>
+          <div class="field">
+            <label for="c-name">새 반 이름</label>
+            <input id="c-name" maxlength="30" placeholder="예) 2학년 3반 한국사">
+          </div>
+          <div class="field">
+            <label for="c-teacher">담당 선생님</label>
+            <input id="c-teacher" maxlength="30" placeholder="예) 김역사">
+          </div>
+          <button class="btn btn-go" type="submit">반 만들기</button>
+        </form>
+        <p class="form-error" id="officeError" role="alert" hidden></p>
+        <p class="office-notice" id="officeNotice" role="status" hidden></p>
+        <div class="class-list" id="classList"></div>
+      </div>
+    </div>
   </dialog>
 
   <div class="toast" id="toast" role="status" hidden></div>

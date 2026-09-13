@@ -19,3 +19,9 @@ services:
       # 이 저장소의 Contents 읽기·쓰기 권한만 준 fine-grained 토큰을 Render 화면에서 직접 넣는다
       - key: GITHUB_TOKEN
         sync: false
+      # 모임 선생님들이 함께 쓰는 교사 비밀번호 (Render 화면에서 직접 넣는다)
+      - key: TEACHER_PASSWORD
+        sync: false
+      # 로그인 토큰 서명용 비밀값 (Render가 자동으로 만든다)
+      - key: SESSION_SECRET
+        generateValue: true

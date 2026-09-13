@@ -81,6 +81,8 @@ function next() {
 
 function end() {
   const win = lives > 0;
+  // 시간여행 역사에 클리어를 알린다 (학생에게 엽전 보상이 들어간다)
+  if (win) parent.postMessage({ type: 'history-station:clear' }, '*');
   app.innerHTML = `
     <h1>${win ? '승리!' : '게임 끝'}</h1>
     <p>점수 ${score}점, ${round}판까지 도전했습니다.</p>

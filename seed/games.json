@@ -10,6 +10,8 @@
     "kind": "html",
     "url": "",
     "cover": "",
+    "fare": 1,
+    "reward": 2,
     "pin": "1234"
   }
 ]
