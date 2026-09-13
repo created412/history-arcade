@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>먼저 일어난 사건은?</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/galmuri@2.40.3/dist/galmuri.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 16px;
+    background: #0b1030; color: #f4ecdc; font-family: 'Galmuri11', 'Malgun Gothic', sans-serif; }
+  .hud { display: flex; justify-content: space-between; gap: 16px; width: min(720px, 100%); font-size: 18px; margin-bottom: 16px; }
+  .hud b { color: #f5c542; font-weight: 400; }
+  h1 { text-align: center; font-size: clamp(22px, 5vw, 34px); margin: 0 0 20px; color: #fff; text-shadow: 0 0 12px #e8452c; }
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: min(720px, 100%); }
+  .card { font: inherit; font-size: clamp(18px, 4vw, 26px); color: #17132b; background: #efe4cb; border: 0;
+    padding: 36px 16px; min-height: 160px; cursor: pointer; box-shadow: inset -6px -6px 0 #b9a67f, 6px 6px 0 #000; }
+  .card:hover { background: #fff6dd; }
+  .card:focus-visible { outline: 4px solid #f5c542; outline-offset: 4px; }
+  .card small { display: block; margin-top: 12px; font-size: 16px; color: #3a63c9; min-height: 1.4em; }
+  .card.right { background: #2fae84; color: #fff; }
+  .card.wrong { background: #e8452c; color: #fff; }
+  .msg { text-align: center; min-height: 2em; margin-top: 18px; font-size: 18px; }
+  .start { font: inherit; font-size: 22px; background: #f5c542; color: #17132b; border: 0; padding: 14px 28px; cursor: pointer; box-shadow: inset -5px -5px 0 #a47b12; }
+  .center { text-align: center; }
+  @media (max-width: 480px) { .cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<main id="app" class="center">
+  <h1>먼저 일어난 사건은?</h1>
+  <p>두 사건 중 먼저 일어난 쪽을 고르세요.<br>목숨은 셋, 10판을 버티면 승리!</p>
+  <button class="start" id="start">시작</button>
+</main>
+<script>
+const EVENTS = [
+  ['위만 조선 성립', -194], ['광개토 대왕 즉위', 391], ['살수 대첩', 612], ['기벌포 전투', 676],
+  ['발해 건국', 698], ['고려 건국', 918], ['귀주 대첩', 1019], ['무신 정변', 1170],
+  ['조선 건국', 1392], ['훈민정음 반포', 1446], ['임진왜란 발발', 1592], ['병자호란', 1636],
+  ['강화도 조약', 1876], ['갑오개혁', 1894], ['을사늑약', 1905], ['3·1 운동', 1919],
+  ['대한민국 정부 수립', 1948], ['6·25 전쟁 발발', 1950], ['4·19 혁명', 1960], ['5·18 민주화 운동', 1980],
+];
+const yearText = (y) => y < 0 ? `기원전 ${-y}년` : `${y}년`;
+let round, lives, score, locked;
+const app = document.getElementById('app');
+
+function start() { round = 0; lives = 3; score = 0; next(); }
+
+function next() {
+  if (lives === 0 || round === 10) return end();
+  round++; locked = false;
+  let a, b;
+  do {
+    a = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+    b = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+  } while (a === b || Math.abs(a[1] - b[1]) < 1);
+  app.innerHTML = `
+    <div class="hud"><span>${round} / 10판</span><span>점수 <b>${score}</b></span><span>${'♥'.repeat(lives)}${'♡'.repeat(3 - lives)}</span></div>
+    <div class="cards">
+      <button class="card" data-i="0">${a[0]}<small></small></button>
+      <button class="card" data-i="1">${b[0]}<small></small></button>
+    </div>
+    <p class="msg" id="msg"></p>`;
+  const pair = [a, b];
+  const earlier = a[1] < b[1] ? 0 : 1;
+  app.querySelectorAll('.card').forEach((btn) => btn.addEventListener('click', () => {
+    if (locked) return; locked = true;
+    const pick = Number(btn.dataset.i);
+    app.querySelectorAll('.card').forEach((c, i) => {
+      c.querySelector('small').textContent = yearText(pair[i][1]);
+      c.classList.add(i === earlier ? 'right' : 'wrong');
+    });
+    const ok = pick === earlier;
+    if (ok) score += 100; else lives--;
+    document.getElementById('msg').textContent = ok ? '맞았습니다! +100' : '아쉽습니다. 연도를 확인해 보세요.';
+    setTimeout(next, 1600);
+  }));
+  app.querySelector('.card').focus();
+}
+
+function end() {
+  const win = lives > 0;
+  app.innerHTML = `
+    <h1>${win ? '승리!' : '게임 끝'}</h1>
+    <p>점수 ${score}점, ${round}판까지 도전했습니다.</p>
+    <button class="start" id="start">다시 하기</button>`;
+  document.getElementById('start').addEventListener('click', start);
+}
+document.getElementById('start').addEventListener('click', start);
+</script>
+</body>
+</html>

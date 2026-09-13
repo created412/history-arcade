@@ -1,0 +1,12 @@
+{
+  "name": "history-arcade",
+  "version": "1.0.0",
+  "description": "미디어와 역사 모임의 역사 게임 오락실",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
