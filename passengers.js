@@ -1,5 +1,5 @@
 // 승객(교사·학생) 로그인과 엽전
-// - 교사: 모임 공용 비밀번호(TEACHER_PASSWORD) + 학교 이름 + 선생님 이름으로 들어오고 엽전 없이 탄다.
+// - 교사: 팀 공용 비밀번호(TEACHER_PASSWORD) + 학교 이름 + 선생님 이름으로 들어오고 엽전 없이 탄다.
 //   여러 학교가 함께 쓰므로, 누가 어느 학교에서 게임을 올렸는지 구분하는 데 쓴다.
 // - 학생: 학교 이름 + 학번만 적고 들어온다. 처음이면 엽전을 받고, 차비를 내고 타며, 클리어하면 보상을 받는다.
 const fs = require('fs');
@@ -82,7 +82,7 @@ function createPassengers({ file, onChange }) {
     return who;
   }
 
-  /* ───── 모임 비밀번호 시도 제한 ───── */
+  /* ───── 팀 비밀번호 시도 제한 ───── */
   // Render 같은 프록시 뒤에서는 X-Forwarded-For의 맨 앞 값을 요청자가 꾸밀 수 있으므로,
   // 프록시가 마지막에 덧붙인 맨 뒤 값을 쓴다.
   function clientIp(req) {
@@ -156,13 +156,13 @@ function createPassengers({ file, onChange }) {
     if (req.method === 'POST' && a === 'teacher') {
       const key = `teacher:${clientIp(req)}`;
       checkThrottle(key, 8);
-      if (!teacherPassword) throw httpError(503, '모임 비밀번호가 아직 설정되지 않았습니다. 관리자가 TEACHER_PASSWORD를 정해야 합니다.');
+      if (!teacherPassword) throw httpError(503, '팀 비밀번호가 아직 설정되지 않았습니다. 관리자가 TEACHER_PASSWORD를 정해야 합니다.');
       const body = await readBody(req);
       const given = crypto.createHash('sha256').update(String(body.password || '')).digest();
       const want = crypto.createHash('sha256').update(teacherPassword).digest();
       if (!crypto.timingSafeEqual(given, want)) {
         recordFailure(key);
-        throw httpError(403, '모임 비밀번호가 맞지 않습니다.');
+        throw httpError(403, '팀 비밀번호가 맞지 않습니다.');
       }
       failures.delete(key);
 

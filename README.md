@@ -1,6 +1,6 @@
 # 시간여행 역사(驛舍)
 
-‘미디어와 역사수업 실천모임’ 선생님들이 직접 만든 역사 게임을 올리고, 고치고, 함께 즐기는 정거장입니다.
+‘동아 에듀테크팀’ 선생님들이 직접 만든 역사 게임을 올리고, 고치고, 함께 즐기는 정거장입니다.
 역사(歷史)와 역사(驛舍)의 말장난에서 출발해, 게임은 시대로 떠나는 **열차**, 시대 분류는 **노선과 역**이 됩니다.
 
 - 배포 주소: https://history-arcade.onrender.com
@@ -24,10 +24,10 @@
 
 설치할 패키지는 없습니다(Node 18 이상). 포트를 바꾸려면 `PORT=8080 npm start`.
 
-모임 비밀번호 같은 설정은 **`.env` 파일**에 적습니다. 이 파일은 git에 올라가지 않습니다. 저장소가 공개이므로 비밀번호를 코드나 README에 적지 마세요.
+팀 비밀번호 같은 설정은 **`.env` 파일**에 적습니다. 이 파일은 git에 올라가지 않습니다. 저장소가 공개이므로 비밀번호를 코드나 README에 적지 마세요.
 
 ```
-TEACHER_PASSWORD=모임 비밀번호
+TEACHER_PASSWORD=팀 비밀번호
 ```
 
 ## 할 수 있는 일
@@ -46,7 +46,7 @@ TEACHER_PASSWORD=모임 비밀번호
 
 | 승객 | 들어오는 법 | 할 수 있는 일 |
 | --- | --- | --- |
-| 선생님 | 모임 비밀번호 + 학교 이름 + 선생님 이름 | 엽전 없이 탑니다. 게임을 올리고, 내가 올린 게임을 고칩니다. |
+| 선생님 | 팀 비밀번호 + 학교 이름 + 선생님 이름 | 엽전 없이 탑니다. 게임을 올리고, 내가 올린 게임을 고칩니다. |
 | 학생 | 학교 이름 + 학번 | 처음 들어오면 **3닢**. 차비를 내고 타고, 클리어하면 보상을 받습니다. |
 | 입장하지 않은 사람 | — | 무료 게임만 탈 수 있습니다. |
 
@@ -87,7 +87,7 @@ parent.postMessage({ type: 'history-station:clear' }, '*');
 - 올라온 HTML 게임은 `Content-Security-Policy: sandbox`로 격리된 출처에서 실행되어,
   사이트 데이터나 다른 선생님의 게임에 손대지 못합니다.
 - 게임 비밀번호는 scrypt 해시로만 저장하고 화면으로 내보내지 않습니다.
-- 모임 비밀번호는 10분에 8번까지만 틀릴 수 있습니다.
+- 팀 비밀번호는 10분에 8번까지만 틀릴 수 있습니다.
 - 엽전과 승차 기록은 2분마다 모아서, 선생님·학생 등록은 바로 GitHub에 보관합니다.
 - 백업은 `data/` 폴더를 통째로 복사하면 됩니다.
 
@@ -104,7 +104,7 @@ parent.postMessage({ type: 'history-station:clear' }, '*');
    - Permissions: *Contents* → **Read and write**
 2. **Render에 연결하기**: [Deploy to Render](https://render.com/deploy?repo=https://github.com/created412/history-arcade)
    - `render.yaml` 설정대로 무료 웹 서비스가 만들어집니다.
-   - `GITHUB_TOKEN` 칸에 1번 토큰을, `TEACHER_PASSWORD` 칸에 모임 비밀번호를 넣고 *Apply*.
+   - `GITHUB_TOKEN` 칸에 1번 토큰을, `TEACHER_PASSWORD` 칸에 팀 비밀번호를 넣고 *Apply*.
 3. 몇 분 뒤 `https://history-arcade-xxxx.onrender.com` 같은 주소가 나오면 선생님들께 공유합니다.
 
 무료 플랜은 15분 동안 접속이 없으면 잠들어, 다음 첫 접속에 30~50초가 걸립니다.
@@ -114,7 +114,7 @@ parent.postMessage({ type: 'history-station:clear' }, '*');
 | `GITHUB_TOKEN` | 저장소 Contents 쓰기 권한 토큰 (없으면 로컬 `data/` 폴더만 사용) |
 | `GITHUB_REPO` | 보관할 저장소, 예: `created412/history-arcade` |
 | `DATA_BRANCH` | 보관 브랜치 (기본 `arcade-data`) |
-| `TEACHER_PASSWORD` | 모임 선생님들이 함께 쓰는 모임 비밀번호 (없으면 선생님으로 들어올 수 없음) |
+| `TEACHER_PASSWORD` | 팀 선생님들이 함께 쓰는 팀 비밀번호 (없으면 선생님으로 들어올 수 없음) |
 | `SESSION_SECRET` | 로그인 토큰 서명용 비밀값 (Render 블루프린트가 자동 생성) |
 | `MAX_GAME_MB` | HTML 게임 파일 한 개의 최대 크기 (기본 100) |
 | `DATA_DIR` | 로컬 데이터 폴더 위치 (기본 `./data`) |

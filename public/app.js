@@ -887,7 +887,7 @@ async function submitTeacher(e) {
   error.hidden = true;
   const body = { password: $('#t-password').value, school: $('#t-school').value.trim(), name: $('#t-name').value.trim() };
   const fail = (msg, field) => { error.textContent = msg; error.hidden = false; field?.focus(); };
-  if (!body.password) return fail('모임 비밀번호를 적어 주세요.', $('#t-password'));
+  if (!body.password) return fail('팀 비밀번호를 적어 주세요.', $('#t-password'));
   if (body.school.length < 2) return fail('학교 이름을 적어 주세요. 예) 한빛중학교', $('#t-school'));
   if (!body.name) return fail('선생님 이름을 적어 주세요.', $('#t-name'));
   try {
