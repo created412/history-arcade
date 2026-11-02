@@ -8,5 +8,15 @@
       "lastSeen": "2026-10-28T13:42:41.257Z"
     }
   ],
-  "students": []
+  "students": [
+    {
+      "id": "6f7b7eaa3968",
+      "school": "양지고등학교",
+      "number": "20312",
+      "coins": 3,
+      "clears": {},
+      "createdAt": "2026-11-02T02:28:48.782Z",
+      "lastSeen": "2026-11-02T02:28:48.782Z"
+    }
+  ]
 }
