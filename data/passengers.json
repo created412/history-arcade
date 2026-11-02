@@ -15,5 +15,15 @@
       "lastSeen": "2026-11-02T02:34:24.580Z"
     }
   ],
-  "students": []
+  "students": [
+    {
+      "id": "9d3a916e7aa5",
+      "school": "양지고",
+      "number": "999901",
+      "coins": 3,
+      "clears": {},
+      "createdAt": "2026-11-02T02:55:30.313Z",
+      "lastSeen": "2026-11-02T02:55:30.313Z"
+    }
+  ]
 }
