@@ -191,9 +191,9 @@ function canEditGame(game, teacher, pin) {
 }
 const EDIT_DENIED = '이 게임을 올린 선생님이거나, 게임 비밀번호를 알아야 고칠 수 있습니다.';
 
-// 링크 게임은 클리어 신호를 보낼 수 없으므로 무료로 태운다
+// 링크 게임은 명시적으로 설정한 차비만 받는다. 기존 등록분은 무료를 유지하고 클리어 보상은 주지 않는다.
 function fareOf(g) {
-  if (g.kind === 'link') return { fare: 0, reward: 0 };
+  if (g.kind === 'link') return { fare: g.linkFare ?? 0, reward: 0 };
   return { fare: g.fare ?? FARE.default, reward: g.reward ?? REWARD.default };
 }
 
@@ -407,6 +407,7 @@ async function handleApi(req, res, url) {
       url: data.kind === 'link' ? data.url : '',
       cover: data.cover || '',
       fare: data.fare ?? FARE.default,
+      ...(data.kind === 'link' ? { linkFare: data.fare ?? 0 } : {}),
       reward: data.reward ?? REWARD.default,
       plays: 0,
       createdAt: now,
@@ -448,6 +449,10 @@ async function handleApi(req, res, url) {
     const body = await readBody(req);
     if (!canEditGame(game, teacher, body.pin)) return send(res, 403, { error: EDIT_DENIED });
     const data = validate(body, true);
+    if ((data.kind || game.kind) === 'link' && data.fare !== undefined) {
+      data.linkFare = data.fare;
+      data.reward = 0;
+    }
     let changes = {};
     if (data.upload !== undefined) {
       changes = placeUpload(data.upload, game.id);
