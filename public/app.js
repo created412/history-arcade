@@ -281,7 +281,7 @@ function fareLine(g) {
   }
   return el('p', { class: 'ticket-fare' },
     el('span', {}, `차비 ${g.fare}닢`),
-    el('span', { class: 'is-reward' }, `깨면 +${g.reward}닢`));
+    ...(g.reward ? [el('span', { class: 'is-reward' }, `깨면 +${g.reward}닢`)] : []));
 }
 
 /* ───────── 첫 화면 버튼과 순서 안내 ───────── */
@@ -409,7 +409,7 @@ function renderGate(g) {
     note.textContent = '무료 열차를 타거나, 차비가 적은 게임을 클리어해 엽전을 모아 보세요.';
     note.hidden = false;
   } else {
-    text.replaceChildren('차비 ', el('b', {}, `${g.fare}닢`), `을 내면 ${state.me.coins - g.fare}닢이 남습니다. 클리어하면 `, el('b', {}, `${g.reward}닢`), '을 받습니다.');
+    text.replaceChildren('차비 ', el('b', {}, `${g.fare}닢`), `을 내면 ${state.me.coins - g.fare}닢이 남습니다.`, ...(g.reward ? [' 클리어하면 ', el('b', {}, `${g.reward}닢`), '을 받습니다.'] : [' 클리어 보상은 없습니다.']));
     button.textContent = `엽전 ${g.fare}닢 내고 시작`;
   }
 }
@@ -568,11 +568,12 @@ function checkEra(form, era) {
 
 function setFareKind(kind) {
   const link = kind === 'link';
-  $('#fareField').classList.toggle('is-link', link);
-  $('#f-fare').disabled = link;
+  $('#fareField').classList.remove('is-link');
+  $('#f-fare').disabled = false;
   $('#f-reward').disabled = link;
+  if (link) $('#f-reward').value = 0;
   $('#fareHint').textContent = link
-    ? '링크 게임은 클리어 신호를 보낼 수 없어 무료 열차가 됩니다.'
+    ? '링크 게임도 차비를 정할 수 있습니다. 클리어 신호가 없어 보상은 0닢입니다.'
     : '학생은 차비를 내고 타고, 게임이 클리어 신호를 보내면 보상을 받습니다.';
 }
 
@@ -673,9 +674,9 @@ async function submitSheet(e) {
   if (!body.author.trim()) return fail('만든 선생님 이름을 적어 주세요.', f.author);
   if (!body.era) return fail('다루는 시대(노선과 역)를 골라 주세요.', form.querySelector('input[name="era"]'));
 
-  if (body.kind === 'html') {
+  {
     const fare = Number(f.fare.value);
-    const reward = Number(f.reward.value);
+    const reward = body.kind === 'link' ? 0 : Number(f.reward.value);
     if (!Number.isInteger(fare) || fare < 0 || fare > 5) return fail('차비는 0~5닢 사이로 정해 주세요.', f.fare);
     if (!Number.isInteger(reward) || reward < 0 || reward > 10) return fail('클리어 보상은 0~10닢 사이로 정해 주세요.', f.reward);
     Object.assign(body, { fare, reward });
