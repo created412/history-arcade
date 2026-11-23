@@ -20,6 +20,8 @@ const { createPassengers } = require('./passengers');
 const PORT = process.env.PORT || 3000;
 const ROOT = __dirname;
 const PUBLIC_DIR = path.join(ROOT, 'public');
+// 저장소에 들어 있는 정적 웹사이트: 주소 /625/ → korean-war-recorder/site/ (6·25 전쟁 기록관)
+const SITE_DIRS = { '625': path.join(ROOT, 'korean-war-recorder', 'site') };
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 const GAMES_DIR = path.join(DATA_DIR, 'games');
 const DB_FILE = path.join(DATA_DIR, 'games.json');
@@ -501,15 +503,15 @@ function serveGame(res, id) {
   fs.createReadStream(gameFile(id)).pipe(res);
 }
 
-function serveStatic(res, pathname) {
+function serveStatic(res, pathname, dir = PUBLIC_DIR, headers = {}) {
   let rel = pathname === '/' ? 'index.html' : decodeURIComponent(pathname).replace(/^\/+|\/+$/g, '');
   // /guide 처럼 확장자 없이 부르면 guide.html을 보여 준다
-  if (rel && !path.extname(rel) && fs.existsSync(path.join(PUBLIC_DIR, `${rel}.html`))) rel = `${rel}.html`;
-  const file = path.normalize(path.join(PUBLIC_DIR, rel));
-  if (!file.startsWith(PUBLIC_DIR) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+  if (rel && !path.extname(rel) && fs.existsSync(path.join(dir, `${rel}.html`))) rel = `${rel}.html`;
+  const file = path.normalize(path.join(dir, rel));
+  if (!file.startsWith(dir + path.sep) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
     return send(res, 404, '페이지를 찾을 수 없습니다.');
   }
-  res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream' });
+  res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] || 'application/octet-stream', ...headers });
   fs.createReadStream(file).pipe(res);
 }
 
@@ -519,6 +521,13 @@ const server = http.createServer(async (req, res) => {
       if (url.pathname.startsWith('/api/')) return await handleApi(req, res, url);
       const m = url.pathname.match(/^\/play\/([^/]+)\/?$/);
       if (m) return serveGame(res, m[1]);
+      const site = url.pathname.match(/^\/([^/]+)(\/.*)?$/);
+      if (site && SITE_DIRS[site[1]]) {
+        // 상대 경로(data/…)가 맞게 풀리도록 /625 → /625/ 로 보낸다
+        if (!site[2]) { res.writeHead(301, { Location: `/${site[1]}/` }); return res.end(); }
+        // 게임 데이터(수 MB)는 하루 동안 브라우저에 보관해 다시 열 때 빨리 뜨게 한다
+        return serveStatic(res, site[2], SITE_DIRS[site[1]], { 'Cache-Control': 'public, max-age=86400' });
+      }
       return serveStatic(res, url.pathname);
     } catch (e) {
       if (!e.status) console.error(e);
