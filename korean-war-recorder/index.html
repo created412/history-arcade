@@ -3949,6 +3949,8 @@ const MAP = (() => {
   // ── 보고서 ──
   async function report() {
     S.finished = true; S.maxDate = MAP.END; save();
+    // 시간여행 역사(驛舍) 정거장에서 실행 중이면 클리어 신호를 보낸다(보상은 한 번 탈 때 한 번만 지급됨)
+    try { if (window.parent !== window) window.parent.postMessage({ type: 'history-station:clear' }, '*'); } catch (e) { /* 단독 실행 */ }
     const stars = Object.keys(S.stars).length;
     const today = new Date();
     const writes = Object.values(S.writes);
