@@ -4,6 +4,7 @@
 역사(歷史)와 역사(驛舍)의 말장난에서 출발해, 게임은 시대로 떠나는 **열차**, 시대 분류는 **노선과 역**이 됩니다.
 
 - 배포 주소: https://history-arcade.onrender.com
+- 6·25 전쟁 기록관 웹사이트: https://history-arcade.onrender.com/625/ (`korean-war-recorder/site/`, `server.js`의 `SITE_DIRS`)
 
 ## 노선과 역 (시대 분류)
 
