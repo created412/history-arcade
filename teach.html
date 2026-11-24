@@ -3841,6 +3841,7 @@ const MAP = (() => {
       <div class="rule"></div><div class="epi">${esc(ch.epi)}</div><button class="btn gold">기록 시작 ▸</button></div></div>`);
     app.appendChild(v);
     await new Promise((res) => { $('.btn', v).onclick = res; $('.btn', v).focus(); });
+    if (bgm.src && bgm.paused && !muted) bgm.play().catch(() => {});
     v.style.transition = 'opacity .6s'; v.style.opacity = 0;
     await wait(500); v.remove();
   }
@@ -3976,7 +3977,7 @@ const MAP = (() => {
     $('[data-a=print]', v).onclick = () => window.print();
     $('[data-a=arc]', v).onclick = () => openArchive();
     $('[data-a=free]', v).onclick = () => { v.remove(); freeMode(() => report()); };
-    $('[data-a=home]', v).onclick = () => { v.remove(); titleScreen(); };
+    $('[data-a=home]', v).onclick = () => { if (window.EDITION) { location.href = 'index.html#pick'; return; } v.remove(); titleScreen(); };
   }
 
   function credits() {
@@ -4038,6 +4039,8 @@ const MAP = (() => {
     const nb = $('[data-a=new]', v); if (nb) nb.onclick = () => go(false, 'solo');
     const tb = $('[data-a=teach]', v); if (tb) tb.onclick = () => go(false, 'teach');
     const cont = $('[data-a=cont]', v); if (cont) cont.onclick = () => go(true);
+    // 웹사이트 판: 시작 화면을 보이지 않고 곧바로 시작(복습용은 하던 기록이 있으면 이어서)
+    if (ED) { v.style.display = 'none'; return go(ED === 'solo' && !!(saved && saved.ch > 0 && !saved.finished), ED); }
     const wipe = $('[data-a=wipe]', v);
     if (wipe) wipe.onclick = () => { try { localStorage.removeItem(KEY); } catch (e) { /* 저장 불가 환경 */ } wipe.parentElement.remove(); toast('이 컴퓨터의 이전 기록을 지웠어요.'); };
     $('[data-a=cr]', v).onclick = credits;
