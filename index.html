@@ -2,194 +2,72 @@
 <html lang="ko">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>지도로 보는 6·25 전쟁</title>
 <link rel="icon" type="image/png" href="logo.png">
-<style>body{margin:0}img{max-width:100%}</style>
-<title>6·25 전쟁 기록관</title>
-<meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;900&family=IBM+Plex+Sans+KR:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@700;900&family=IBM+Plex+Sans+KR:wght@500;700&display=swap">
 <style>
-/* 레이아웃: 게임 표지(썸네일)가 곧 첫 화면, 그 아래 판 고르기 → 장 구성 → 수업 조작 → 출처. 게임과 같은 밤의 기록실 한 가지 분위기로 고정 */
+/* 한 화면 표지: 기록실 책상 위 지도 그림을 바탕으로, 왼쪽에 제목과 두 판 단추만 둔다 */
 :root {
-  --ink: #0e1116;        /* 밤의 기록실 바탕 */
-  --ink-2: #161b22;      /* 카드 바탕 */
-  --paper: #f4ead2;      /* 낡은 종이색 글자 */
-  --paper-dim: #b9ae95;  /* 보조 글자 */
-  --gold: #e0bf6c;       /* 38도선 금빛 */
-  --rok: #5d86c4;        /* 지도 남쪽 파랑 */
-  --dprk: #c5444c;       /* 지도 북쪽 빨강 */
-  --line: rgba(224, 191, 108, .28);
+  --ink: #07090d; --paper: #f4ead2; --paper-dim: #c9bea4; --gold: #e6c878; --gold-2: #c9a24a; --rok: #6f97d6;
   --display: 'Noto Serif KR', 'Nanum Myeongjo', serif;
   --body: 'IBM Plex Sans KR', 'Noto Sans KR', system-ui, sans-serif;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
-body { background: var(--ink); color: var(--paper); font: 400 16px/1.7 var(--body); }
-a { color: inherit; }
-.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-
-/* 표지 */
-.cover { position: relative; padding-block: 28px 8px; }
-.cover figure { margin: 0; position: relative; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(0, 0, 0, .55); }
-.cover img { display: block; width: 100%; max-width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
-.cover figcaption { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 18px; font-size: 13px; color: var(--paper-dim); background: linear-gradient(0deg, rgba(8, 10, 14, .85), rgba(8, 10, 14, 0)); }
-.lede { display: grid; grid-template-columns: 1.2fr 1fr; gap: 28px; align-items: end; padding-block: 34px 10px; }
-.lede > * { min-width: 0; }
-.eyebrow { font: 700 13px/1 var(--body); letter-spacing: .32em; color: var(--gold); }
-h1 { font: 900 clamp(40px, 6vw, 68px)/1.08 var(--display); margin: 12px 0 0; text-wrap: balance; }
-.lede p { margin: 0; color: var(--paper-dim); font-size: 17px; max-width: 34em; }
-.lede p b { color: var(--paper); font-weight: 700; }
-
-/* 38도선 가르는 선 */
-.parallel { position: relative; height: 22px; margin: 34px 0 6px; }
-.parallel::before { content: ""; position: absolute; left: 0; right: 0; top: 10px; border-top: 2px dashed var(--gold); opacity: .75; }
-.parallel span { position: absolute; left: 0; top: 0; padding-right: 10px; background: var(--ink); font: 700 12px/22px var(--body); letter-spacing: .14em; color: var(--gold); }
-
-h2 { font: 900 clamp(26px, 3.4vw, 34px)/1.25 var(--display); margin: 18px 0 6px; text-wrap: balance; }
-.sub { margin: 0 0 22px; color: var(--paper-dim); }
-
-/* 판 고르기 */
-.editions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
-.ed { min-width: 0; display: flex; flex-direction: column; gap: 14px; padding: 22px 22px 20px; background: var(--ink-2); border: 1px solid var(--line); border-radius: 6px; border-top: 4px solid var(--c, var(--gold)); }
-.ed.teach { --c: var(--gold); }
-.ed.solo { --c: var(--rok); }
-.ed.file { --c: var(--paper-dim); }
-.ed .tag { font: 700 12px/1 var(--body); letter-spacing: .18em; color: var(--c); }
-.ed h3 { margin: 0; font: 900 24px/1.3 var(--display); }
-.ed ul { margin: 0; padding-left: 1.1em; color: var(--paper-dim); font-size: 15px; display: grid; gap: 4px; }
-.ed ul b { color: var(--paper); font-weight: 500; }
-.meta { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; }
-.chip { font: 500 12.5px/1 var(--body); padding: 7px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--paper-dim); font-variant-numeric: tabular-nums; }
-.go { display: inline-flex; justify-content: center; align-items: center; gap: 8px; padding: 13px 18px; border-radius: 4px; font: 700 16px/1 var(--body); text-decoration: none; background: var(--c); color: var(--ink); transition: transform .15s, filter .15s; }
-.go:hover { filter: brightness(1.08); transform: translateY(-1px); }
-.go:focus-visible, .ed a:focus-visible { outline: 3px solid var(--paper); outline-offset: 3px; }
-.ed.file .go { background: transparent; color: var(--paper); border: 1px solid var(--paper-dim); }
-
-/* 장 구성 */
-.chapters { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border-top: 1px solid var(--line); }
-.chapters li { min-width: 0; padding: 18px 18px 18px 0; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: 64px 1fr; gap: 4px 12px; }
-.chapters .no { grid-row: span 2; font: 900 15px/1.5 var(--display); color: var(--gold); }
-.chapters b { font: 900 18px/1.4 var(--display); }
-.chapters span { color: var(--paper-dim); font-size: 14px; font-variant-numeric: tabular-nums; }
-
-/* 수업 조작 */
-.keys { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 28px; }
-.key { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: baseline; min-width: 0; }
-kbd { font: 700 13px/1 var(--body); padding: 6px 9px; border-radius: 4px; border: 1px solid var(--paper-dim); border-bottom-width: 3px; color: var(--paper); white-space: nowrap; }
-.key p { margin: 0; color: var(--paper-dim); font-size: 15px; }
-.key p b { color: var(--paper); font-weight: 500; }
-
-.notes { display: grid; gap: 8px; color: var(--paper-dim); font-size: 14px; max-width: 70em; }
-.notes p { margin: 0; }
-.notes b { color: var(--paper); font-weight: 500; }
-
-footer { margin-top: 48px; padding-block: 22px 34px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 14px; color: var(--paper-dim); font-size: 13px; }
-footer img { width: 44px; height: 44px; border-radius: 50%; }
-footer b { color: var(--paper); font-weight: 700; display: block; font-size: 14px; }
-
-@media (max-width: 860px) {
-  .lede { grid-template-columns: 1fr; gap: 14px; }
-  .editions, .chapters { grid-template-columns: 1fr; }
-  .keys { grid-template-columns: 1fr; }
+html, body { margin: 0; height: 100%; background: var(--ink); color: var(--paper); font: 500 16px/1.6 var(--body); }
+.cover { position: relative; min-height: 100%; overflow: hidden; display: flex; align-items: center;
+  padding: max(28px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(28px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); }
+.cover::before { content: ""; position: absolute; inset: 0; background: url(bg.jpg) 70% center / cover no-repeat; filter: saturate(1.1) contrast(1.06); transform: scale(1.03); }
+.cover::after { content: ""; position: absolute; inset: 0; background:
+  linear-gradient(90deg, rgba(7,9,13,.95) 0%, rgba(7,9,13,.84) 30%, rgba(7,9,13,.35) 55%, rgba(7,9,13,0) 72%),
+  radial-gradient(130% 100% at 72% 45%, rgba(0,0,0,0) 45%, rgba(0,0,0,.6) 100%); }
+.in { position: relative; z-index: 1; width: min(640px, 100%); margin-left: clamp(0px, 5vw, 90px); }
+.yr { font: 700 clamp(14px, 1.5vw, 18px)/1 var(--body); letter-spacing: .5em; color: var(--gold); }
+h1 { margin: 14px 0 0; font: 900 clamp(52px, 8.4vw, 120px)/1 var(--display); letter-spacing: -.01em;
+  background: linear-gradient(180deg, #fffaf0 0%, #f1dcae 55%, var(--gold-2) 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,.85)); }
+h1 span { display: block; }
+h1 .pre { font-size: .5em; line-height: 1.25; margin-bottom: .08em; }
+.tag { margin: 18px 0 0; padding-top: 16px; border-top: 2px solid; border-image: linear-gradient(90deg, var(--gold), transparent) 1;
+  font: 700 clamp(18px, 2vw, 24px)/1.4 var(--display); color: var(--paper); text-shadow: 0 2px 12px rgba(0,0,0,.9); }
+.tag b { color: #ff7a4c; }
+.picks { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 30px; }
+.pick { display: flex; flex-direction: column; gap: 6px; padding: 18px 20px; border-radius: 6px; text-decoration: none; color: var(--paper);
+  background: rgba(10, 12, 16, .72); border: 2px solid var(--c); backdrop-filter: blur(4px); transition: transform .15s, background .15s; }
+.pick:hover { transform: translateY(-2px); background: rgba(10, 12, 16, .88); }
+.pick:focus-visible { outline: 3px solid var(--paper); outline-offset: 3px; }
+.pick.teach { --c: var(--gold); }
+.pick.solo { --c: var(--rok); }
+.pick b { font: 900 clamp(22px, 2.3vw, 28px)/1.2 var(--display); color: var(--c); }
+.pick b::after { content: " ▸"; font-size: .8em; }
+.pick span { font-size: 14px; color: var(--paper-dim); line-height: 1.5; }
+.foot { margin-top: 22px; font-size: 13px; color: var(--paper-dim); text-shadow: 0 1px 8px rgba(0,0,0,.9); }
+.foot a { color: var(--gold); }
+.logo { position: absolute; z-index: 1; right: max(20px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom));
+  width: clamp(56px, 6vw, 88px); height: auto; border-radius: 50%; box-shadow: 0 6px 20px rgba(0,0,0,.6); }
+@media (max-width: 700px) {
+  .cover { align-items: flex-end; }
+  .cover::before { background-position: 62% 20%; }
+  .cover::after { background: linear-gradient(0deg, rgba(7,9,13,.97) 0%, rgba(7,9,13,.88) 48%, rgba(7,9,13,.2) 80%); }
+  .in { margin-left: 0; padding-bottom: 56px; }
+  .picks { grid-template-columns: 1fr; }
+  .logo { width: 48px; }
 }
-@media (prefers-reduced-motion: reduce) { .go { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .pick { transition: none; } }
 </style>
-
-<div class="wrap">
-  <header class="cover">
-    <figure>
-      <img src="cover.jpg" alt="6·25 전쟁 기록관 표지: 1945–1953, 그날의 지도를 펼치다">
-      <figcaption>표지 배경은 AI로 그린 상상화입니다.</figcaption>
-    </figure>
-    <div class="lede">
-      <div>
-        <div class="eyebrow">1945 – 1953</div>
-        <h1>6·25 전쟁 기록관</h1>
-      </div>
-      <p>지도 위에서 광복부터 정전까지 8년을 따라가며 전선의 움직임과 사람들의 이야기를 기록하는 <b>고등학교 한국사 수업용 게임</b>입니다. 동아출판 『한국사』 72~73·88~91쪽을 바탕으로 만들었고, 한 번 끝까지 하는 데 <b>약 30분</b> 걸립니다.</p>
-    </div>
-  </header>
-
-  <div class="parallel" aria-hidden="true"><span>북위 38°</span></div>
-
-  <section aria-labelledby="h-ed">
-    <h2 id="h-ed">어떤 판으로 시작할까요</h2>
-    <p class="sub">게임 내용은 모두 같아요. 누가 설명하느냐와 기록을 남기느냐가 다릅니다.</p>
-    <div class="editions">
-      <article class="ed teach">
-        <div class="tag">교실 · 교사 진행</div>
-        <h3>수업용</h3>
-        <ul>
-          <li>학예사 목소리 없이 <b>선생님이 설명</b>하며 넘깁니다.</li>
-          <li><b>→ · PageDown</b>(발표용 리모컨)으로 진행, <b>H</b>로 설명자료.</li>
-          <li>공용 PC에 <b>기록을 남기지 않아요.</b></li>
-        </ul>
-        <div class="meta"><span class="chip">약 15.6MB</span><span class="chip">전자칠판·노트북</span></div>
-        <a class="go" href="teach.html">수업용으로 열기 ▸</a>
-      </article>
-      <article class="ed solo">
-        <div class="tag">집 · 혼자 복습</div>
-        <h3>복습용</h3>
-        <ul>
-          <li>학예사 한서윤이 <b>목소리로 안내</b>해요. 소리를 켜 주세요.</li>
-          <li>도중에 닫아도 <b>이어서 기록하기</b>로 다시 시작합니다.</li>
-          <li>마지막에 나만의 <b>기록관 보고서</b>가 나와요.</li>
-        </ul>
-        <div class="meta"><span class="chip">약 19.1MB</span><span class="chip">태블릿·폰·PC</span></div>
-        <a class="go" href="solo.html">복습용으로 열기 ▸</a>
-      </article>
-      <article class="ed file">
-        <div class="tag">오프라인 · 한 파일</div>
-        <h3>단일 파일</h3>
-        <ul>
-          <li>두 판이 모두 든 <b>HTML 파일 하나</b>. 인터넷 없이 열립니다.</li>
-          <li>USB·학교 PC 보관용. 주소 끝 <b>#장=2&amp;단계=5</b>로 장면 바로가기.</li>
-          <li>GitHub에서 <b>Download raw file</b>을 눌러 받으세요.</li>
-        </ul>
-        <div class="meta"><span class="chip">19.1MB</span><span class="chip">크롬 권장</span></div>
-        <a class="go" href="https://github.com/created412/history-arcade/blob/main/korean-war-recorder/index.html" target="_blank" rel="noopener">GitHub에서 받기 ↗</a>
-      </article>
-    </div>
-  </section>
-
-  <div class="parallel" aria-hidden="true"><span>여섯 개의 장</span></div>
-
-  <section aria-labelledby="h-ch">
-    <h2 id="h-ch">지도가 걸어가는 순서</h2>
-    <p class="sub">각 장은 지도 연출, 인물 장면, 교과서 자료, 기록 과제로 이루어져 있어요.</p>
-    <ol class="chapters">
-      <li><span class="no">서장</span><b>냉전과 한반도</b><span>1945. 8. – 1950. 6. · 38도선 긋기, 애치슨 선언</span></li>
-      <li><span class="no">제1장</span><b>북한의 남침</b><span>1950. 6. 25. – 1950. 8. · 유엔 16개국, 이우근의 편지</span></li>
-      <li><span class="no">제2장</span><b>인천 상륙 작전과 북진</b><span>1950. 9. – 1950. 11. · 상륙 지점 고르기, 형제의 상</span></li>
-      <li><span class="no">제3장</span><b>중국군 개입과 1·4 후퇴</b><span>1950. 10. – 1951. 3. · 흥남 철수</span></li>
-      <li><span class="no">제4장</span><b>교착과 정전</b><span>1951. 7. – 1953. 10. · 포로 송환, 휴전선과 38도선</span></li>
-      <li><span class="no">종장</span><b>전쟁이 남긴 것</b><span>1953 – · 피란민, 여성, 전쟁고아, 민간인 학살</span></li>
-    </ol>
-  </section>
-
-  <div class="parallel" aria-hidden="true"><span>수업 조작</span></div>
-
-  <section aria-labelledby="h-key">
-    <h2 id="h-key">수업 중에 쓰는 키</h2>
-    <div class="keys">
-      <div class="key"><kbd>→ / PageDown</kbd><p><b>다음 장면.</b> 발표용 리모컨의 넘김 단추로도 됩니다.</p></div>
-      <div class="key"><kbd>H</kbd><p><b>설명자료 열고 닫기.</b> 그 장면의 설명·발문·더 알아보기가 들어 있어요.</p></div>
-      <div class="key"><kbd>⛶</kbd><p><b>전체 화면.</b> 화면 위쪽 단추를 누르세요.</p></div>
-      <div class="key"><kbd>자료집</kbd><p><b>모은 교과서 자료와 연표,</b> 지도 자유 탐색을 다시 봅니다.</p></div>
-    </div>
-  </section>
-
-  <div class="parallel" aria-hidden="true"><span>자료</span></div>
-
-  <section class="notes" aria-label="자료 출처">
-    <p><b>교과서</b> — 사진과 지도는 동아출판 고등학교 『한국사』에서 수업용으로 가져왔고, 저작권은 원저작자에게 있습니다.</p>
-    <p><b>지도</b> — 해안선·지형은 Natural Earth 공공 자료이고, 전선은 교과서 지도를 따른 개략도입니다.</p>
-    <p><b>인물</b> — 인물 그림과 재구성 대사의 목소리는 AI로 만든 상상입니다. 「실제 육성」 표시가 있는 목소리만 당시 녹음입니다.</p>
-  </section>
-
-  <footer>
-    <img src="logo.png" alt="">
-    <div><b>史AI 사이연구소</b>역사 수업을 위한 AI 도구를 만듭니다.</div>
-  </footer>
-</div>
+<main class="cover">
+  <div class="in">
+    <div class="yr">1945 – 1953</div>
+    <h1><span class="pre">지도로 보는</span><span>6·25 전쟁</span></h1>
+    <p class="tag">광복에서 정전까지, <b>전선</b>이 움직인 8년</p>
+    <nav class="picks" aria-label="판 고르기">
+      <a class="pick teach" href="teach.html"><b>수업용</b><span>선생님이 설명하며 진행<br>리모컨 → · H 설명자료</span></a>
+      <a class="pick solo" href="solo.html"><b>복습용</b><span>학예사 음성 안내로 혼자<br>이어서 하기 · 보고서</span></a>
+    </nav>
+    <p class="foot">고등학교 『한국사』 72~73·88~91쪽 · 약 30분 · <a href="https://github.com/created412/history-arcade/blob/main/korean-war-recorder/index.html" target="_blank" rel="noopener">오프라인 파일</a></p>
+  </div>
+  <img class="logo" src="logo.png" alt="史AI 사이연구소">
+</main>
+</html>
