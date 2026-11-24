@@ -2206,9 +2206,9 @@ const MAP = (() => {
     const src = (typeof VO !== 'undefined') && VO[who + '|' + text];
     if (!src || muted) return { done: Promise.resolve(), dur: Promise.resolve(text.length * 0.11) };
     const a = new Audio(src);
-    a.playbackRate = VO_RATE; a.preservesPitch = true;
+    a.playbackRate = (LEADERS[who] || who === 'announcer') ? 1 : VO_RATE; a.preservesPitch = true; // 지도자·아나운서는 실제 육성처럼 원래 빠르기
     curAudio = a; duck(true);
-    const dur = new Promise((r) => { a.onloadedmetadata = () => r((a.duration || text.length * 0.11) / VO_RATE); a.onerror = () => r(text.length * 0.11); });
+    const dur = new Promise((r) => { a.onloadedmetadata = () => r((a.duration || text.length * 0.11) / a.playbackRate); a.onerror = () => r(text.length * 0.11); });
     const done = new Promise((r) => { a.onended = r; a.onerror = r; a._stop = r; });
     a.play().catch(() => a._stop && a._stop());
     return { done, dur };
@@ -4000,7 +4000,7 @@ const MAP = (() => {
       <p><b>지도</b> — 해안선·국경·강·지형 음영은 Natural Earth(공공 자료)를 사용했습니다. 전선은 교과서 지도를 기준으로 그린 <b>개략도</b>입니다. 교과서 지도 겹쳐 보기는 대략 맞춘 것이라 조금 어긋날 수 있습니다.</p>
       <p><b>인물 그림·영상</b> — Higgsfield(GPT Image·Seedance·Sync)로 만든 <b>상상</b>입니다. 실존 인물의 실제 모습과 다릅니다.</p>
       <p><b>실제 육성</b> — 「실제 육성」 표시가 있는 목소리는 당시 녹음 그대로이며 우리말 자막을 달았습니다. 들리지 않는 낱말은 「……」로 두었습니다. 출처 링크는 마지막 보고서에 있습니다.</p>
-      <p><b>재구성 대사</b> — 그 밖의 인물 목소리는 AI이고, 대사는 교과서 내용을 바탕으로 인물의 말로 다시 꾸민 것입니다. 「사료」 표시가 있는 문장은 교과서에 실린 실제 기록입니다.</p>
+      <p><b>재구성 대사</b> — 그 밖의 인물 목소리는 AI이고, 대사는 교과서 내용을 바탕으로 인물의 말로 다시 꾸민 것입니다. 지도자와 아나운서의 재구성 목소리는 남아 있는 실제 녹음의 나이·음높이·말 빠르기에 가깝게 ElevenLabs로 새로 설계한 AI 목소리입니다(본인 목소리를 복제한 것이 아닙니다. 맥아더의 본 대사만 기존의 실제 녹음 바탕 재현 목소리). 「사료」 표시가 있는 문장은 교과서에 실린 실제 기록입니다.</p>
       <p><b>사진</b> — 형제의 상(Spielvogel, CC0), 1950년 무렵 도쿄 GHQ 건물(퍼블릭 도메인), 뤼순 소련군 열사릉원(Ffggss, CC BY-SA 4.0) · 위키미디어 공용.</p>
       <p><b>내용 검토</b> — 6·25 전쟁을 전공한 현직 교사의 검토 의견을 반영했습니다.</p>
       <div class="btnrow"><button class="btn" data-a="x">닫기</button></div></div>`);
