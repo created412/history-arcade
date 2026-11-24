@@ -2206,7 +2206,7 @@ const MAP = (() => {
     const src = (typeof VO !== 'undefined') && VO[who + '|' + text];
     if (!src || muted) return { done: Promise.resolve(), dur: Promise.resolve(text.length * 0.11) };
     const a = new Audio(src);
-    a.playbackRate = (LEADERS[who] || who === 'announcer') ? 1 : VO_RATE; a.preservesPitch = true; // 지도자·아나운서는 실제 육성처럼 원래 빠르기
+    a.playbackRate = who === 'guide' ? VO_RATE : 1; a.preservesPitch = true; // 학예사 해설만 1.3배, 인물 목소리는 원래 빠르기
     curAudio = a; duck(true);
     const dur = new Promise((r) => { a.onloadedmetadata = () => r((a.duration || text.length * 0.11) / a.playbackRate); a.onerror = () => r(text.length * 0.11); });
     const done = new Promise((r) => { a.onended = r; a.onerror = r; a._stop = r; });
