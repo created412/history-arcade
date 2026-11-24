@@ -3,6 +3,36 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script>
+/* 휴대폰은 가로 화면 전용: 가로면 1000px 폭 화면을 통째로 줄여 보여 주고(겹침·잘림 방지), 세로면 돌려 달라는 안내만 보인다 */
+(function () {
+  var force = /[?&]phone=1/.test(location.search);
+  var phone = force || (Math.min(screen.width, screen.height) < 540 && matchMedia('(pointer: coarse)').matches);
+  if (!phone) return;
+  var root = document.documentElement, meta = document.querySelector('meta[name=viewport]');
+  root.classList.add('phone');
+  function land() { return screen.orientation && screen.orientation.type ? screen.orientation.type.indexOf('landscape') === 0 : matchMedia('(orientation: landscape)').matches; }
+  function apply() {
+    var L = force ? innerWidth > innerHeight : land();
+    root.classList.toggle('portrait', !L);
+    if (!force) meta.setAttribute('content', L ? 'width=1000, user-scalable=no, viewport-fit=cover' : 'width=device-width, initial-scale=1, user-scalable=no');
+    setTimeout(function () { dispatchEvent(new Event('resize')); }, 250);
+  }
+  apply();
+  addEventListener('orientationchange', function () { setTimeout(apply, 120); });
+  if (screen.orientation && screen.orientation.addEventListener) screen.orientation.addEventListener('change', apply);
+  matchMedia('(orientation: landscape)').addEventListener('change', apply);
+  // 첫 터치에서 전체 화면 + 가로 고정(안드로이드 크롬 등 지원하는 브라우저만)
+  addEventListener('pointerdown', function first() {
+    removeEventListener('pointerdown', first, true);
+    var el = document.documentElement;
+    if (document.fullscreenElement || !el.requestFullscreen) return;
+    el.requestFullscreen({ navigationUI: 'hide' }).then(function () {
+      if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {});
+    }).catch(function () {});
+  }, true);
+})();
+</script>
 <title>지도로 보는 6·25 전쟁</title>
 <link rel="icon" type="image/png" href="data:image/png;base64,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">
 <style>
@@ -1095,15 +1125,53 @@ textarea { width: 100%; min-height: 140px; font: 16px/1.7 var(--sans); padding: 
   .hot.site .badge svg { width: 16px; height: 16px; }
   .hot.site .ell { width: 48px; height: 18px; margin: -9px 0 0 -24px; }
   .hot.site .lab { font-size: 13px; margin-bottom: 3px; }
-  .instruct { top: 40px; font-size: 13.5px; padding: 6px 12px; max-width: max(300px, calc(100vw - 560px)); }
+  .instruct { top: 40px; font-size: 13.5px; padding: 6px 12px; max-width: max(300px, calc(100vw - 590px)); }
   .instruct .ihint { padding: 2px 8px; font-size: 11.5px; }
 }
 
 /* 시작 화면 제목: 「지도로 보는」을 작게 위에 */
 .title h1 .pre { display: block; font-size: .46em; line-height: 1.2; margin-bottom: .1em; color: #f1dcae; }
+
+/* ── 휴대폰 ── */
+/* 기록 시트 장식이 오른쪽으로 삐져나와 가로 스크롤이 생기던 문제 */
+.sheet, .modal .sheet.tsheet { overflow-x: hidden; }
+/* 낮은 화면: 「자동으로 긋기」 단추가 38도선 위를 덮어 끌기를 막던 문제 → 아래(연표 위)로 */
+@media (max-height: 620px) { .autodraw { bottom: 60px; } }
+/* 낮은 화면: 사진 끌기 받침을 오른쪽 두 줄 세로판으로(지도가 왼쪽에 넉넉히 보이게) */
+@media (max-height: 520px) {
+  .tray { left: auto; right: 8px; top: 96px; bottom: 50px; transform: none; display: grid; grid-template-columns: repeat(2, 92px); align-content: start; gap: 6px; padding: 6px; overflow-x: hidden; overflow-y: auto; }
+  .tray .dragcard { width: 92px; padding: 3px; }
+  .tray .dragcard img { height: 42px; }
+  .tray .dragcard span { font-size: 10.5px; line-height: 1.25; padding-top: 2px; }
+}
+/* 낮은 화면: 유엔군 16개국 카드가 아래 해설 자막을 가리지 않게 줄임 */
+@media (max-height: 520px) {
+  .un16p { top: 40px; padding: 9px 14px; }
+  .un16p h3 { font-size: 16px; margin: 2px 0 6px; }
+  .un16p h3 b { font-size: 20px; }
+  .un16p .chips { gap: 4px; min-height: 0; }
+  .un16p .chip { font-size: 12.5px; padding: 3px 8px; }
+  .un16p .pg.small { margin-top: 4px; }
+  .un16p .btn { margin-top: 4px; padding: 6px 12px; }
+  html.phone.portrait .brandmark { display: none; }
+}
+html.phone.portrait .brandmark { display: none; }
+#rotate { display: none; }
+html.phone.portrait #rotate { display: flex; position: fixed; inset: 0; z-index: 9999; background: #0b1013; color: #f4ead2; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; padding: 24px; font-family: var(--sans); }
+html.phone.portrait #app { visibility: hidden; }
+#rotate .ph { width: 64px; height: 104px; border: 4px solid #e6c878; border-radius: 12px; position: relative; animation: rot90 2.4s ease-in-out infinite; }
+#rotate .ph::after { content: ""; position: absolute; left: 50%; bottom: 7px; width: 14px; height: 4px; margin-left: -7px; border-radius: 2px; background: #e6c878; }
+#rotate b { font-size: 21px; font-weight: 800; }
+#rotate span { font-size: 15px; color: #c9bea4; line-height: 1.6; word-break: keep-all; }
+@keyframes rot90 { 0%, 25% { transform: rotate(0); } 55%, 85% { transform: rotate(-90deg); } 100% { transform: rotate(0); } }
+html.phone, html.phone body { overscroll-behavior: none; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+/* 터치로 끌 때 브라우저가 화면을 움직이지 않게 */
+#map, .hot, .timeline, .dragcard { touch-action: none; }
+.hot.knob { padding: 18px; }
 </style>
 </head>
 <body>
+<div id="rotate" role="alert"><div class="ph"></div><b>휴대폰을 가로로 돌려 주세요</b><span>이 기록관은 가로 화면에서만 진행돼요.<br>화면 자동 회전이 꺼져 있으면 켜 주세요.</span></div>
 <div id="app"><div id="mapHost"></div><div class="vignette"></div></div>
 <script>window.EDITION = "solo";</script>
 <script src="data/assets.js"></script>
@@ -2410,12 +2478,13 @@ const MAP = (() => {
     const tasking = H < 520 && (ins || tk) && !box('.narr') && !box('.dlg');
     const narr = tasking ? 6 : H < 620 ? 60 : 82;
     let b = (tl ? H - tl.top : 60) + narr;
-    const tb = box('.talkbar.real'); if (tb) b = Math.max(b, H - tb.top + 6); // 실제 육성 자막은 키가 커서 지도를 그 위로 올린다
+    const tb = box('.talkbar.real'); if (tb) b = Math.max(b, H - tb.top + 6);
+    const tr = box('.tray'); if (tr) { if (tr.left > W / 2) r = Math.max(r, W - tr.left + 6); else b = Math.max(b, H - tr.top + 6); } // 사진 끌기 받침이 지도 아래쪽 빈 자리를 가리지 않게 // 실제 육성 자막은 키가 커서 지도를 그 위로 올린다
     return { t, b, l: 8 + padL, r, W };
   };
   // 과제 띠·지시문이 뜨거나 사라지면 지도 범위를 다시 맞춘다
   new MutationObserver((ms) => {
-    const hit = ms.some((m) => [...m.addedNodes, ...m.removedNodes].some((n) => n.nodeType === 1 && n.matches('.taskbar, .instruct, .talkbar.real')));
+    const hit = ms.some((m) => [...m.addedNodes, ...m.removedNodes].some((n) => n.nodeType === 1 && n.matches('.taskbar, .instruct, .talkbar.real, .tray')));
     if (hit) setTimeout(() => MAP.refit(), 30);
   }).observe(app, { childList: true });
 
@@ -3179,8 +3248,10 @@ const MAP = (() => {
         drawTo(p);
         if (p > 0.97) { on = false; removeEventListener('pointermove', move); resolve(); }
       };
-      knob.addEventListener('pointerdown', (e) => { e.preventDefault(); on = true; addEventListener('pointermove', move); });
-      addEventListener('pointerup', () => { on = false; });
+      // 터치: 손가락을 잡아 두어(pointer capture) 브라우저가 끌기를 가로채지 않게 한다
+      knob.addEventListener('pointerdown', (e) => { e.preventDefault(); on = true; try { knob.setPointerCapture(e.pointerId); } catch (er) { /* 미지원 */ } addEventListener('pointermove', move); });
+      const stop = () => { on = false; };
+      addEventListener('pointerup', stop); addEventListener('pointercancel', stop);
       auto.onclick = async () => { for (let p = 0; p <= 1.001; p += 0.02) { drawTo(p); await wait(16); } resolve(); };
     });
     drawTo(1); knob.remove(); auto.remove(); ins.done();
