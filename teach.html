@@ -1198,26 +1198,26 @@ const PEOPLE = {
 
 // 지도자: 움직이는 초상(idle)과 입 모양을 맞춘 발언 영상(talk)이 하나씩 있다.
 const LEADERS = {
-  acheson:   { name: '딘 애치슨', title: '미국 국무 장관', nation: '미국', img: 'L_acheson',
+  acheson:   { name: '딘 애치슨', title: '미국 국무 장관', nation: '미국', img: 'L_acheson', voice: '1950. 11. 중국군 개입 뒤 연설 실제 녹음',
     intro: '나는 미국 국무 장관 딘 애치슨이오. 오늘 워싱턴의 내셔널 프레스 클럽에서 미국의 아시아 정책을 발표하겠소.',
     line: '미국의 태평양 방위선은 알류샨 열도에서 일본과 오키나와를 거쳐 필리핀으로 이어집니다.' },
-  stalin:    { name: '이오시프 스탈린', title: '소련 최고 지도자', nation: '소련', img: 'L_stalin', real: 'stalin_1',
+  stalin:    { name: '이오시프 스탈린', title: '소련 최고 지도자', nation: '소련', img: 'L_stalin', voice: '1952. 10. 소련 공산당 제19차 대회 연설 실제 녹음', real: 'stalin_1',
     intro: '나는 소련의 최고 지도자 이오시프 스탈린이오. 김일성이 남침 계획에 대한 동의를 구해 왔소.',
     line: { t: '기본적으로 공격은 3단계로 작성하시오. 전쟁은 기습적이고 신속해야 합니다. 남조선과 미국이 정신 차릴 틈을 주어서는 안 됩니다.', src: '스탈린의 발언, 『구소련 문서』' } },
-  kim:       { name: '김일성', title: '북한 정권 수상', nation: '북한', img: 'L_kim',
+  kim:       { name: '김일성', title: '북한 정권 수상', nation: '북한', img: 'L_kim', voice: '1948. 4. 평양 남북 연석회의 연설 실제 녹음',
     intro: '나는 북한 정권의 수상 김일성이오. 오늘 남쪽을 공격할 작전 회의를 열었소.',
     line: '소련과 중국의 지원으로 군사력을 키웠소. 미국은 개입하지 않을 것이오. 38도선을 넘어 남쪽으로 진격하라.' },
-  truman:    { name: '해리 S. 트루먼', title: '미국 대통령', nation: '미국', img: 'L_truman', real: 'truman_2',
+  truman:    { name: '해리 S. 트루먼', title: '미국 대통령', nation: '미국', img: 'L_truman', voice: '1950. 7. 19. 대국민 연설·1947. 3. 12. 의회 연설 실제 녹음(트루먼 도서관, 퍼블릭 도메인)', real: 'truman_2',
     intro: '나는 미국 대통령 해리 트루먼이오. 북한군이 38도선을 넘어 남쪽을 공격했다는 보고를 받았소.',
     line: '유엔은 북한을 침략자로 규정하고, 국제 평화를 위해 유엔군 파병을 결의하였소. 미국을 중심으로 16개국이 참전하오.' },
   macarthur: { name: '더글러스 맥아더', title: '유엔군 사령관', nation: '유엔군', img: 'L_macarthur',
     voice: '1951년 미국 의회 고별 연설 실제 녹음(퍼블릭 도메인, 위키미디어 공용)',
     intro: '나는 도쿄의 유엔군 사령관 더글러스 맥아더요. 지금 전선은 낙동강까지 밀려 있소.',
     line: '낙동강에서 버티는 것만으로는 이길 수 없소. 적의 뒤쪽 깊숙이 상륙해 서울을 되찾겠소.' },
-  mao:       { name: '마오쩌둥', title: '중화 인민 공화국 주석', nation: '중국', img: 'L_mao', real: 'mao_2',
+  mao:       { name: '마오쩌둥', title: '중화 인민 공화국 주석', nation: '중국', img: 'L_mao', voice: '1953. 2. 중국 인민 정치 협상 회의 연설 실제 녹음', real: 'mao_2',
     intro: '나는 중화 인민 공화국 주석 마오쩌둥이오. 압록강 너머의 전쟁을 지켜보고 있었소.',
     line: '유엔군이 38도선을 넘어 북쪽으로 올라오고 있소. 약속대로 압록강을 건너 군대를 보내겠소.' },
-  rhee:      { name: '이승만', title: '대한민국 대통령', nation: '대한민국', img: 'L_rhee',
+  rhee:      { name: '이승만', title: '대한민국 대통령', nation: '대한민국', img: 'L_rhee', voice: '1948. 8. 15. 정부 수립 기념식 축사 실제 녹음',
     intro: '나는 대한민국 대통령 이승만이오. 정전 회담 소식을 듣고 있소.',
     line: '분단된 채로 전쟁을 멈출 수는 없소. 나는 정전에 반대하오. 반공 포로들을 석방하라.' },
 };
@@ -2747,7 +2747,7 @@ const MAP = (() => {
       ${idle ? `<video class="vid idle" src="${idle}" muted loop playsinline autoplay></video>` : ''}
       ${talk ? `<video class="vid talk" src="${talk}" playsinline preload="auto"></video>` : ''}
       <div class="shade"></div>
-      <div class="aitag" title="${esc(L.voice ? '목소리 바탕: ' + L.voice : '실제 인물의 모습·목소리와 다릅니다')}">${L.voice ? 'AI 상상 영상 · 실제 녹음을 바탕으로 AI가 재현한 목소리' : 'AI 상상 영상 · 목소리도 AI'}</div>
+      <div class="aitag" title="${esc(L.voice ? '목소리 바탕: ' + L.voice : '실제 인물의 모습·목소리와 다릅니다')}">${L.voice ? 'AI 상상 영상 · 실제 녹음으로 AI가 재현한 목소리 · 실제 발언 아님' : 'AI 상상 영상 · 목소리도 AI'}</div>
       <div class="plate"><span class="nat">${esc(L.nation)}</span><h2>${esc(L.name)}</h2><p>${esc(L.title)}</p><div class="bar"></div></div>
       <div class="panel"><div class="speech"><div class="meta"></div><div class="txt"></div><div class="srcline"></div></div>
       <div class="qs"></div></div></div>`);
@@ -2760,7 +2760,7 @@ const MAP = (() => {
         : P.src ? '<span class="badge src">사료</span>' : '<span class="badge adapt" title="교과서 내용을 바탕으로 인물의 말로 다시 꾸민 대사">재구성 대사</span>';
       tx.className = 'txt' + (P.src || R ? ' quote' : '');
       $('.srcline', v).innerHTML = R ? realFoot(P.real) : P.src ? `— ${esc(P.src)}` : '';
-      $('.aitag', v).textContent = R ? 'AI 상상 영상 · 목소리는 실제 녹음' : L.voice ? 'AI 상상 영상 · 실제 녹음을 바탕으로 AI가 재현한 목소리' : 'AI 상상 영상 · 목소리도 AI';
+      $('.aitag', v).textContent = R ? 'AI 상상 영상 · 목소리는 실제 녹음' : L.voice ? 'AI 상상 영상 · 실제 녹음으로 AI가 재현한 목소리 · 실제 발언 아님' : 'AI 상상 영상 · 목소리도 AI';
       let done, dur;
       if (R) {
         const a = playReal(P.real);
@@ -4071,7 +4071,7 @@ const MAP = (() => {
       <p><b>지도</b> — 해안선·국경·강·지형 음영은 Natural Earth(공공 자료)를 사용했습니다. 전선은 교과서 지도를 기준으로 그린 <b>개략도</b>입니다. 교과서 지도 겹쳐 보기는 대략 맞춘 것이라 조금 어긋날 수 있습니다.</p>
       <p><b>인물 그림·영상</b> — Higgsfield(GPT Image·Seedance·Sync)로 만든 <b>상상</b>입니다. 실존 인물의 실제 모습과 다릅니다.</p>
       <p><b>실제 육성</b> — 「실제 육성」 표시가 있는 목소리는 당시 녹음 그대로이며 우리말 자막을 달았습니다. 들리지 않는 낱말은 「……」로 두었습니다. 출처 링크는 마지막 보고서에 있습니다.</p>
-      <p><b>재구성 대사</b> — 그 밖의 인물 목소리는 AI이고, 대사는 교과서 내용을 바탕으로 인물의 말로 다시 꾸민 것입니다. 지도자와 아나운서의 재구성 목소리는 남아 있는 실제 녹음의 나이·음높이·말 빠르기에 가깝게 ElevenLabs로 새로 설계한 AI 목소리입니다(본인 목소리를 복제한 것이 아닙니다. 맥아더의 본 대사만 기존의 실제 녹음 바탕 재현 목소리). 「사료」 표시가 있는 문장은 교과서에 실린 실제 기록입니다.</p>
+      <p><b>재구성 대사</b> — 그 밖의 인물 목소리는 AI이고, 대사는 교과서 내용을 바탕으로 인물의 말로 다시 꾸민 것입니다. 지도자의 재구성 대사는 그 인물의 실제 녹음(「실제 육성」으로 들려주는 연설)에서 목소리 특징을 따와 AI 음성 변환(오픈소스 Seed-VC)으로 재현한 목소리입니다. 목소리만 닮게 만든 것이고, 그 인물이 실제로 한 말은 아닙니다. 아나운서는 ElevenLabs로 설계한 AI 목소리입니다. 「사료」 표시가 있는 문장은 교과서에 실린 실제 기록입니다.</p>
       <p><b>사진</b> — 형제의 상(Spielvogel, CC0), 1950년 무렵 도쿄 GHQ 건물(퍼블릭 도메인), 뤼순 소련군 열사릉원(Ffggss, CC BY-SA 4.0) · 위키미디어 공용.</p>
       <p><b>내용 검토</b> — 6·25 전쟁을 전공한 현직 교사의 검토 의견을 반영했습니다.</p>
       <div class="btnrow"><button class="btn" data-a="x">닫기</button></div></div>`);
