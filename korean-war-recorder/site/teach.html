@@ -4033,7 +4033,7 @@ const MAP = (() => {
     const ED = window.EDITION;
     if (ED === 'teach') $('[data-a=new]', v).remove();
     if (ED === 'solo') $('[data-a=teach]', v).remove();
-    const home = h('<a class="linkbtn edhome" href="index.html">← 다른 판 고르기</a>');
+    const home = h('<a class="linkbtn edhome" href="index.html#pick">← 다른 판 고르기</a>');
     if (ED) $('.small', v).prepend(home, document.createElement('br'));
     const nb = $('[data-a=new]', v); if (nb) nb.onclick = () => go(false, 'solo');
     const tb = $('[data-a=teach]', v); if (tb) tb.onclick = () => go(false, 'teach');
