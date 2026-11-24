@@ -1795,6 +1795,7 @@ const MAP = (() => {
   let lastEventIdx = -2, onEvent = null;
   const EV = EVENTS.map((e) => ({ ...e, n: dnum(e.d), cn: /^중국군/.test(e.t) }));
   const AR = ARROWS.map((a) => ({ ...a, f: dnum(a.from), t: dnum(a.to) }));
+  const HEAD_D = 'M-5,-5L5,0L-5,5Z';
   const PK = POCKETS.map((p) => ({ ...p, f: dnum(p.from), t: dnum(p.to), d: circleD(p.c, p.r) }));
 
   const ICONS = {
@@ -1896,7 +1897,8 @@ const MAP = (() => {
 
     // 화살표
     AR.forEach((a) => {
-      a.el = mk('path', { d: lineD(a.pts), class: `arrow arrow-${a.side}`, 'marker-end': `url(#ah-${a.side})` }, el.arrows);
+      a.el = mk('path', { d: lineD(a.pts), class: `arrow arrow-${a.side}` }, el.arrows);
+      a.head = mk('path', { d: HEAD_D, class: `ah ah-${a.side}` }, el.arrows);
       a.len = null;
     });
     // 사건 표시
@@ -2025,11 +2027,12 @@ const MAP = (() => {
       if (a.len === null) a.len = a.el.getTotalLength();
       if (a.k === undefined) a.k = a.keep ? dnum(a.keep) : a.t + 24;
       const vis = !neutral && !(hideCN && a.side === 'c') && n >= a.f - 0.5 && n <= a.k;
-      if (!vis) { a.el.style.opacity = 0; return; }
+      if (!vis) { a.el.style.opacity = 0; a.head.style.opacity = 0; return; }
       const p = clamp((n - a.f) / (a.t - a.f || 1), 0, 1);
       a.el.style.strokeDasharray = `${a.len} ${a.len}`;
       a.el.style.strokeDashoffset = (a.len * (1 - p)).toFixed(1);
       a.el.style.opacity = n > a.k - 12 ? clamp((a.k - n) / 12, 0, 1) : 1;
+      placeHead(a.head, a.el, a.len * p, a.el.style.opacity);
     });
 
     // 사건 표시와 카드
@@ -2128,7 +2131,7 @@ const MAP = (() => {
   // 선을 그리는 연출: 끝나면 path 요소를 돌려준다
   function drawPath(pts, cls, dur = 1500, marker) {
     const e = mk('path', { d: lineD(pts), class: cls }, el.fx);
-    if (marker) e.setAttribute('marker-end', `url(#ah-${marker})`);
+    const head = marker ? mk('path', { d: HEAD_D, class: `ah ah-${marker}`, style: 'opacity:0' }, el.fx) : null;
     const len = e.getTotalLength();
     e.style.strokeDasharray = `${len} ${len}`;
     e.style.strokeDashoffset = len;
@@ -2137,10 +2140,20 @@ const MAP = (() => {
       const step = (now) => {
         const t = clamp((now - t0) / dur, 0, 1);
         e.style.strokeDashoffset = (len * (1 - ease(t))).toFixed(1);
+        if (head) placeHead(head, e, len * ease(t), 1);
         if (t < 1) requestAnimationFrame(step); else { if (!/dash/.test(cls)) e.style.strokeDasharray = ''; res(e); }
       };
       requestAnimationFrame(step);
     });
+  }
+  // 화살표 머리: 선이 그려진 지점(at)에 선의 방향대로 놓는다. 아직 거의 안 그려졌으면 숨긴다
+  function placeHead(head, path, at, opacity) {
+    if (at < 2) { head.style.opacity = 0; return; }
+    const q = path.getPointAtLength(at), b = path.getPointAtLength(Math.max(0, at - 2));
+    const ang = Math.atan2(q.y - b.y, q.x - b.x) * 180 / Math.PI;
+    const sw = parseFloat(getComputedStyle(path).strokeWidth) || 4;
+    head.setAttribute('transform', `translate(${q.x.toFixed(1)},${q.y.toFixed(1)}) rotate(${ang.toFixed(1)}) scale(${(sw * 0.42).toFixed(3)})`);
+    head.style.opacity = opacity;
   }
   function addPath(d, cls, parent = 'fx') { return mk('path', { d, class: cls }, el[parent]); }
   function addText(txt, lon, lat, cls) { const [x, y] = xy(lon, lat); const t = mk('text', { x, y, class: cls }, el.fx); t.textContent = txt; return t; }
