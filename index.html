@@ -55,6 +55,23 @@ h1 .pre { font-size: .5em; line-height: 1.25; margin-bottom: .08em; }
   .picks { grid-template-columns: 1fr; }
   .logo { width: 48px; }
 }
+/* 폰 가로처럼 낮은 화면: 한 화면 안에 다 들어가도록 줄인다(스크롤 없음) */
+@media (max-height: 560px) {
+  .cover { align-items: center; padding-top: max(10px, env(safe-area-inset-top)); padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .cover::after { background: linear-gradient(90deg, rgba(7,9,13,.95) 0%, rgba(7,9,13,.85) 45%, rgba(7,9,13,.3) 75%, rgba(7,9,13,0) 90%); }
+  .in { margin-left: 0; padding-bottom: 0; width: min(560px, 100%); }
+  .yr { font-size: 11px; }
+  h1 { margin-top: 6px; font-size: clamp(28px, 11vh, 52px); }
+  .tag { margin-top: 8px; padding-top: 8px; font-size: 14px; }
+  .picks { grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+  .pick { padding: 9px 14px; gap: 2px; }
+  .pick b { font-size: 19px; }
+  .pick span { font-size: 12px; }
+  .foot { margin-top: 8px; font-size: 11px; }
+  .logo { width: 40px; }
+}
+html, body { overflow: hidden; }
+.cover { height: 100%; min-height: 0; }
 @media (prefers-reduced-motion: reduce) { .pick { transition: none; } }
 </style>
 <main class="cover">
