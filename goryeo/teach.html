@@ -1339,14 +1339,56 @@ html.phone .stcard .spic, .stcard .spic { min-height: 0; }
 /* 그림이 크게 다른 장면으로 넘어갈 때 살짝 어두워졌다 환해지는 막 */
 .leader .veil, .debate .dvl { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s ease; }
 .leader .veil.on, .debate .dvl.on { opacity: 1; transition: opacity .28s ease; }
+/* ── 혼자 해 보기 전용: 기록 점수 ── */
+.pill.gsc { display: inline-flex; align-items: center; gap: 4px; color: #ffe6a0; border-color: rgba(255, 215, 107, .7); white-space: nowrap; }
+.pill.gsc[hidden] { display: none; }
+.pill.gsc b { color: #fff; font-variant-numeric: tabular-nums; }
+.pill.gsc .cmb { font-style: normal; margin-left: 6px; padding: 1px 8px; border-radius: 9px; background: #c8202c; color: #fff; font-size: 12px; }
+.pill.gsc.bump { animation: gbump .5s ease-out; }
+@keyframes gbump { 30% { transform: scale(1.16); background: rgba(120, 90, 20, .95); } }
+.gpop { position: absolute; left: 50%; top: 64px; transform: translateX(-50%); z-index: 80; pointer-events: none; font: 900 20px var(--serif); color: #ffe6a0; text-shadow: 0 2px 8px #000, 0 0 2px #000; white-space: nowrap; animation: gpop 1.6s ease-out forwards; }
+@keyframes gpop { 0% { opacity: 0; transform: translate(-50%, 14px) scale(.8); } 15% { opacity: 1; transform: translate(-50%, 0) scale(1.08); } 70% { opacity: 1; transform: translate(-50%, -6px) scale(1); } 100% { opacity: 0; transform: translate(-50%, -26px); } }
+.gquiz { width: auto; }
+.gquiz h3 { margin: 4px 0 10px; }
+.gquiz .gq-top { display: flex; align-items: center; gap: 10px; }
+.gquiz .gq-n { font-weight: 800; color: #7a6c52; font-size: 13px; white-space: nowrap; }
+.gquiz .gq-bar { flex: 1; height: 8px; border-radius: 4px; background: #e2d6b8; overflow: hidden; }
+.gquiz .gq-bar i { display: block; height: 100%; width: 100%; background: linear-gradient(90deg, #c9a24a, #c8202c); transform-origin: left; }
+@keyframes gqbar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+.gquiz .gq-s { font: 700 20px/1.6 var(--serif); margin: 14px 0; min-height: 3.2em; word-break: keep-all; }
+.gquiz .gq-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.gquiz .gq-btns .btn { font-size: 18px; padding: 14px 10px; }
+.gquiz .gq-btns .btn.right { background: #2f6fd6; color: #fff; border-color: #2f6fd6; opacity: 1; }
+.gquiz .gq-btns .btn.wrong { background: #6b2b2b; color: #f1d6d6; border-color: #a33; opacity: .8; }
+.gquiz .gq-fb { margin-top: 10px; min-height: 1px; }
+.gquiz .btnrow { justify-content: flex-end; margin-top: 8px; }
+.gsum { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 4px; }
+.gsum div { min-width: 96px; padding: 8px 10px; border: 1px solid #c9b48a; border-radius: 6px; background: #fbf6e8; font-size: 12px; color: #6b5d43; }
+.gsum b { display: block; font: 900 20px var(--serif); color: #1d140a; }
+.gnext { margin: 6px 0 0; font-weight: 700; color: #8a5a00; }
+.report .stat.gstat b { color: #8a5a00; }
+@media (max-height: 560px) { .gpop { top: 50px; font-size: 16px; } .gquiz .gq-s { font-size: 16px; margin: 8px 0; min-height: 2.6em; } .gquiz .gq-btns .btn { font-size: 15px; padding: 9px 8px; } .gsum div { min-width: 80px; padding: 5px 8px; } .gsum b { font-size: 16px; } }
+.topbar .pill { white-space: nowrap; }
+@media (max-height: 560px), (max-width: 1100px) { .topbar .chap { max-width: 150px; overflow: hidden; text-overflow: ellipsis; } }
+.gbadges { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 8px; margin: 6px 0 14px; }
+.gbadges .gb { border: 1px solid #c9b48a; border-radius: 6px; padding: 8px 10px; background: #f6efdc; color: #8a7d62; display: grid; grid-template-columns: auto 1fr auto; column-gap: 8px; align-items: center; }
+.gbadges .gb i { font-style: normal; font-size: 22px; grid-row: span 2; filter: grayscale(1); opacity: .5; }
+.gbadges .gb b { font-size: 14px; }
+.gbadges .gb span { grid-column: 2; font-size: 11.5px; line-height: 1.4; }
+.gbadges .gb em { grid-column: 3; grid-row: 1 / span 2; font-style: normal; font-weight: 800; font-size: 12px; }
+.gbadges .gb.got { background: #fff6d8; border-color: #c9a24a; color: #3a2c10; }
+.gbadges .gb.got i { filter: none; opacity: 1; }
+.gbadges .gb.got em { color: #a8321f; }
+.report .stats:has(.gstat) { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 800px) { .report .stats:has(.gstat) { grid-template-columns: repeat(2, 1fr); } }
 </style>
 </head>
 <body>
 <div id="rotate" role="alert"><div class="ph"></div><b>휴대폰을 가로로 돌려 주세요</b><span>이 기록관은 가로 화면에서만 진행돼요.<br>화면 자동 회전이 꺼져 있으면 켜 주세요.</span></div>
 <div id="app"><div id="mapHost"></div><div class="vignette"></div></div>
 <script>window.EDITION = "teach";</script>
-<script src="data/assets.js?v=25067190"></script>
-<script src="data/voice-cast.js?v=1826127"></script>
+<script src="data/assets.js?v=25067870"></script>
+<script src="data/voice-cast.js?v=1824015"></script>
 <script>
 // ASSETS: data/assets.js
 // VO: data/voice-cast.js (+ data/voice-guide.js)
@@ -2084,15 +2126,50 @@ const LV_META = {
   LV_wanggeon_talk: { s: 1.26, e: 11.3, back: 0.42 },
   LV_seohui_talk: { s: 1.24, e: 8, back: 1.33 },
   LV_gamchan_talk: { s: 0.78, e: 9, back: 0 },
-  LV_ijagyeom_talk: { s: 1.22, e: 13.7, back: 0 },
+  LV_ijagyeom_talk: { s: 1.27, e: 12.73, back: 0 },
   LV_yungwan_talk: { s: 1.01, e: 9.7, back: 0 },
   LV_choeu_talk: { s: 0.2, e: 7.4 },
-  LV_baejungson_talk: { s: 0.24, e: 10.55 },
-  LV_gongmin_talk: { s: 0, e: 14.7 },
+  LV_baejungson_talk: { s: 0.27, e: 8.67 },
+  LV_gongmin_talk: { s: 0.15, e: 14.1 },
   LV_choeyoung_talk: { s: 0.2, e: 7.4 },
   LV_iseonggye_talk: { s: 0, e: 15.67 },
   LV_sosonnyeong_talk: { s: 0.62, e: 6.83 },
-  LV_seohui_talk2: { s: 0, e: 7.7, back: 0.71 }, // 담판 장면은 LV_seohui_idle2를 대기 영상으로 쓴다
+  LV_seohui_talk2: { s: 0.05, e: 7.6, back: 0.71 }, // 담판 장면은 LV_seohui_idle2를 대기 영상으로 쓴다
+};
+
+// ── 혼자 해 보기 전용 · 장 끝 「기억 확인」(2026-11-26) ──
+// 문장을 읽고 맞으면 ○, 틀리면 ✕. 모두 교과서 본문에 있는 내용이고 쪽수를 함께 보여 준다.
+const CHECKS = {
+  c0: [
+    { s: '고려는 발해 유민을 받아들이고, 발해를 멸망시킨 거란은 적대하였다.', a: true, why: '고려는 발해 유민을 적극적으로 받아들였고, 거란은 멀리했어요.', p: 26 },
+    { s: '10세기 동아시아에서는 송이 국제 질서를 홀로 주도하였다.', a: false, why: '어느 한 나라가 국제 질서를 주도하지 못한 다원적 국제 질서였어요.', p: 58 },
+    { s: '벽란도는 개경에 가깝고 해상 교통이 편리해 국제 무역항으로 번영하였다.', a: true, why: '송·거란·여진·일본·아라비아 상인이 벽란도를 오갔어요.', p: 59 },
+  ],
+  c1: [
+    { s: '서희는 거란군과 큰 전투를 벌여 강동 6주를 빼앗았다.', a: false, why: '서희는 싸움이 아니라 외교 담판으로 압록강 동쪽 지역을 확보했어요.', p: 29 },
+    { s: '거란의 2차 침입 때 개경이 함락되고 왕이 나주까지 피란하였다.', a: true, why: '큰 위기였지만 양규 등이 돌아가는 거란군에게 큰 타격을 주었어요.', p: 29 },
+    { s: '강감찬이 이끄는 고려군은 귀주에서 거란군을 크게 격파하였다.', a: true, why: '1019년의 귀주 대첩이에요.', p: 29 },
+  ],
+  c2: [
+    { s: '별무반은 신기군, 신보군, 항마군으로 이루어졌다.', a: true, why: '기병인 신기군, 보병인 신보군, 승병인 항마군이에요.', p: 29 },
+    { s: '고려는 윤관이 쌓은 동북 9성을 끝까지 지켜 냈다.', a: false, why: '여진이 조공을 바치고 침입하지 않겠다고 약속하자 9성을 돌려주었어요.', p: 29 },
+    { s: '금이 임금과 신하의 관계를 요구하자 이자겸 등이 이를 받아들였다.', a: true, why: '당시 집권자였던 이자겸 등이 금의 요구를 받아들였어요.', p: 29 },
+  ],
+  c3: [
+    { s: '몽골은 사신이 귀국길에 살해된 사건을 구실로 고려를 침입하였다.', a: true, why: '1231년, 몽골의 1차 침입이에요.', p: 32 },
+    { s: '고려는 몽골군과 싸울 준비를 하려고 수도를 서경으로 옮겼다.', a: false, why: '수도를 옮긴 곳은 강화도예요(1232).', p: 32 },
+    { s: '처인성과 충주성에서는 부곡민과 노비 같은 하층민도 몽골군에 맞서 싸웠다.', a: true, why: '부곡민, 노비 등의 하층민까지 몽골군에 저항했어요.', p: 32 },
+  ],
+  c4: [
+    { s: '삼별초는 개경 환도에 반발하여 진도와 제주도로 옮겨 가며 싸웠다.', a: true, why: '강화도에서 봉기해 진도, 제주도로 옮겨 갔고 1273년에 진압되었어요.', p: 34 },
+    { s: '원은 일본 원정이 끝나자 정동행성을 없애고 고려의 내정에 간섭하지 않았다.', a: false, why: '원은 정동행성을 유지하면서 고려의 내정에 간섭했어요.', p: 32 },
+    { s: '원 간섭기에 고려에서 유행한 원의 복식과 언어를 고려양이라고 한다.', a: false, why: '그것은 몽골풍이에요. 고려양은 원에서 유행한 고려의 풍습이에요.', p: 59 },
+  ],
+  c5: [
+    { s: '공민왕은 쌍성총관부를 공격하여 철령 이북의 땅을 되찾았다.', a: true, why: '원에 빼앗겼던 철령 이북의 땅을 되찾았어요(1356).', p: 33 },
+    { s: '전민변정도감은 권문세족의 토지를 늘려 주려고 설치하였다.', a: false, why: '권문세족이 빼앗은 토지를 원래 주인에게 돌려주고, 억울하게 노비가 된 사람을 양인으로 되돌리려 했어요.', p: 33 },
+    { s: '홍건적과 왜구를 토벌하는 과정에서 이성계 등 신흥 무인 세력이 성장하였다.', a: true, why: '이성계 같은 신흥 무인 세력이 이때 성장했어요.', p: 33 },
+  ],
 };const MAP = (() => {
   const P = GEO.proj;
   const NS = 'http://www.w3.org/2000/svg';
@@ -2609,7 +2686,7 @@ const LV_META = {
   const save = () => { if (S.mode === 'teach') return; try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* 저장 불가 환경 */ } };
   const TASK_TOTAL = CHAPTERS.reduce((n, c) => n + (c.steps || []).filter((s) => s.task).length, 0) + 1 + 4;
   const MAT_TOTAL = Object.keys(MATERIALS).length + Object.keys(TB_MAPS).length;
-  const addMat = (k) => { if (!S.mats.includes(k)) { S.mats.push(k); save(); $('#nMats').textContent = S.mats.length; } };
+  const addMat = (k) => { if (!S.mats.includes(k)) { S.mats.push(k); save(); $('#nMats').textContent = S.mats.length; GAME.mat(); } };
 
   // ── 소리 ──
   let muted = false;
@@ -2713,7 +2790,7 @@ const LV_META = {
   const hud = h(`<div class="hud">
     <div class="datecard paper"><div class="k" id="hk"></div><div class="d" id="hd"></div><div class="s" id="hs"></div><div class="srcb">동아출판 고등학교 『한국사』 바탕</div></div>
     <div class="eventcard paper" id="ev" title="눌러서 최근 사건 펼치기"><div class="ed"><i></i><span id="evd"></span></div><div class="et" id="evt">기록을 시작합니다</div><div class="es" id="evs"></div><ul id="evl"></ul></div>
-    <div class="topbar"><span class="pill chap" id="chap"></span><button class="pill btn" id="bArc">자료집 <span class="n" id="nMats">0</span></button><button class="pill btn" id="bMute" title="소리">🔊</button><button class="pill btn" id="bFull" title="전체 화면">⛶</button></div>
+    <div class="topbar"><span class="pill chap" id="chap"></span><span class="pill gsc" id="gScore" hidden title="한 번에 맞힌 기록 · 기록 점수">★ <b class="stars">0</b> · <b class="pts">0</b>점<i class="cmb" hidden></i></span><button class="pill btn" id="bArc">자료집 <span class="n" id="nMats">0</span></button><button class="pill btn" id="bMute" title="소리">🔊</button><button class="pill btn" id="bFull" title="전체 화면">⛶</button></div>
     <div class="legend paper" id="legend"><h4>범례 <span>접기</span></h4><div class="rows">
       <div class="row"><span class="sw" style="background:#4673b3"></span>고려</div>
       <div class="row"><span class="sw" style="background:#a24848"></span>거란(요)</div>
@@ -3362,6 +3439,124 @@ const LV_META = {
     addMat(k);
   }
 
+  // ── 혼자 해 보기 전용: 기록 점수 · 연속 기록 · 장 끝 기억 확인 ──
+  const GAME = (() => {
+    const on = () => !!S && S.mode !== 'teach';
+    const g = () => (S.game || (S.game = { score: 0, combo: 0, best: 0, done: {}, ch: {}, checks: {} }));
+    const BEST = KEY + '-best';
+    let cur = '', actx = null;
+    // 알림음(소리 파일 없이 만든다). seq: [[주파수, 길이(초)], …]
+    function tone(seq) {
+      if (muted) return;
+      try {
+        actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+        let t = actx.currentTime + 0.01;
+        for (const [f, d] of seq) {
+          const o = actx.createOscillator(), a = actx.createGain();
+          o.type = 'triangle'; o.frequency.value = f;
+          a.gain.setValueAtTime(0.0001, t); a.gain.exponentialRampToValueAtTime(0.09, t + 0.02); a.gain.exponentialRampToValueAtTime(0.0001, t + d);
+          o.connect(a); a.connect(actx.destination); o.start(t); o.stop(t + d + 0.03); t += d * 0.75;
+        }
+      } catch (err) { /* 소리 없이 */ }
+    }
+    const SND = { good: [[660, 0.12], [880, 0.2]], combo: [[660, 0.1], [880, 0.1], [1175, 0.26]], soft: [[520, 0.16]], miss: [[220, 0.22]] };
+    function hud() {
+      const e = $('#gScore'); if (!e) return;
+      e.hidden = !on(); if (!on()) return;
+      const G = g();
+      $('.stars', e).textContent = Object.keys(S.stars).length;
+      $('.pts', e).textContent = G.score.toLocaleString('ko-KR');
+      const c = $('.cmb', e); c.hidden = G.combo < 2; c.textContent = G.combo >= 2 ? `연속 ${G.combo}` : '';
+    }
+    function pop(text, cls = '') { const e = h(`<div class="gpop ${cls}">${esc(text)}</div>`); app.appendChild(e); setTimeout(() => e.remove(), 1700); }
+    function add(pts, label, snd) {
+      if (!on() || !pts) return;
+      const G = g(); G.score += pts; if (cur) G.ch[cur] = (G.ch[cur] || 0) + pts;
+      hud();
+      const e = $('#gScore'); if (e) { e.classList.remove('bump'); void e.offsetWidth; e.classList.add('bump'); }
+      pop(`+${pts}  ${label}`); tone(SND[snd || 'good']); save();
+    }
+    // 한 번에 맞히면 연속 기록이 쌓이고 점수가 커진다(1.2배 → 1.5배 → 2배)
+    function scored(id, ok, first, base, name) {
+      if (!on()) return; const G = g(); if (G.done[id]) return; G.done[id] = 1;
+      if (ok && first) {
+        G.combo++; G.best = Math.max(G.best, G.combo);
+        const mult = [1, 1, 1.2, 1.5, 2][Math.min(G.combo, 4)];
+        add(Math.round(base * mult / 10) * 10, G.combo >= 2 ? `연속 ${G.combo}번! ${name}` : name, G.combo >= 2 ? 'combo' : 'good');
+      } else if (ok) { G.combo = 0; add(Math.round(base / 2), '다시 생각해서 기록', 'soft'); }
+      else { G.combo = 0; hud(); tone(SND.miss); save(); }
+    }
+    const task = (id, ok, tries) => scored(id, ok, tries === 1, 100, '한 번에 기록');
+    const play = (id, ok) => { if (!on()) return; if (ok) scored(id, true, true, 150, '작전 성공'); else { const G = g(); if (G.done[id]) return; G.done[id] = 1; G.combo = 0; add(50, '끝까지 해냄', 'soft'); } };
+    const write = (id, text) => { if (!on()) return; const G = g(); if (G.done['w-' + id] || (text || '').length < 15) return; G.done['w-' + id] = 1; add(50, '생각 기록', 'soft'); };
+    const mat = () => { if (on()) add(20, '자료 수집', 'soft'); };
+    const enter = (id) => { cur = id; hud(); };
+    // 다음 칭호까지 남은 별
+    function nextTitle() {
+      const stars = Object.keys(S.stars).length, up = TITLES.filter(([r]) => r > 0 && Math.ceil(r * TASK_TOTAL) > stars).sort((a, b) => a[0] - b[0])[0];
+      return up ? { name: up[1], need: Math.ceil(up[0] * TASK_TOTAL) - stars } : null;
+    }
+    // 장 끝 「기억 확인」: 문장 세 개를 읽고 ○/✕. 12초 안에 고른다.
+    async function check(c) {
+      const ch = CHAPTERS[c], list = (typeof CHECKS !== 'undefined' && CHECKS[ch.id]) || [];
+      if (!on() || !list.length || g().checks[ch.id] != null) return;
+      const qs = shuffle(list.slice()); let right = 0;
+      const box = h(`<div class="gquiz"><div class="kicker">기억 확인 · ${esc(ch.no)}</div><h3>맞으면 ○, 틀리면 ✕</h3>
+        <div class="gq-top"><span class="gq-n"></span><div class="gq-bar"><i></i></div></div>
+        <p class="gq-s"></p><div class="gq-btns"><button class="btn gq-o">○ 맞다</button><button class="btn gq-x">✕ 틀리다</button></div>
+        <div class="gq-fb"></div><div class="btnrow"></div></div>`);
+      const m = modal(box);
+      const bar = $('.gq-bar i', box), fb = $('.gq-fb', box), row = $('.btnrow', box), bo = $('.gq-o', box), bx = $('.gq-x', box);
+      for (let i = 0; i < qs.length; i++) {
+        const Q = qs[i];
+        $('.gq-n', box).textContent = `${i + 1} / ${qs.length}`; $('.gq-s', box).textContent = Q.s;
+        fb.innerHTML = ''; row.innerHTML = ''; bo.disabled = bx.disabled = false; bo.className = 'btn gq-o'; bx.className = 'btn gq-x';
+        bar.style.animation = 'none'; void bar.offsetWidth; bar.style.animation = 'gqbar 12s linear forwards';
+        const t0 = performance.now();
+        const ans = await new Promise((r) => { const tm = setTimeout(() => r(null), 12000); bo.onclick = () => { clearTimeout(tm); r(true); }; bx.onclick = () => { clearTimeout(tm); r(false); }; });
+        bar.style.animationPlayState = 'paused'; bo.disabled = bx.disabled = true;
+        const ok = ans === Q.a, fast = ok && performance.now() - t0 < 5000;
+        (Q.a ? bo : bx).classList.add('right'); if (ans != null && !ok) (ans ? bo : bx).classList.add('wrong');
+        if (ok) { right++; add(fast ? 80 : 60, fast ? '빠른 판정' : '정확한 판정', 'good'); } else tone(SND.miss);
+        fb.innerHTML = `<div class="feedback ${ok ? 'ok' : 'info'}"><b>${ok ? '맞았어요!' : ans == null ? '시간이 다 되었어요.' : '다시 확인해요.'}</b> ${esc(Q.why)} <span class="pg">(교과서 ${Q.p}쪽)</span></div>`;
+        const nb = h(`<button class="btn gold">${i < qs.length - 1 ? '다음 문장 ▸' : '결과 보기 ▸'}</button>`); row.appendChild(nb); nb.focus({ preventScroll: true });
+        await new Promise((r) => (nb.onclick = r));
+      }
+      if (right === qs.length) add(100, '세 문장 모두 정답', 'combo');
+      g().checks[ch.id] = right; save();
+      m.remove();
+    }
+    // 장 끝 기록 완료 창에 더하는 줄
+    function summary(c) {
+      if (!on()) return '';
+      const G = g(), ch = CHAPTERS[c], nt = nextTitle(), ck = G.checks[ch.id];
+      return `<div class="gsum"><div><b>${(G.ch[ch.id] || 0).toLocaleString('ko-KR')}</b>이번 장 점수</div><div><b>${G.score.toLocaleString('ko-KR')}</b>모은 점수</div><div><b>${G.best}</b>가장 긴 연속 기록</div>${ck != null ? `<div><b>${ck} / ${(CHECKS[ch.id] || []).length}</b>기억 확인</div>` : ''}</div>`
+        + (nt ? `<p class="gnext">다음 칭호 「${esc(nt.name)}」까지 ★ ${nt.need}개</p>` : '<p class="gnext">가장 높은 칭호에 올랐어요!</p>');
+    }
+    // 보고서에 더하는 칸(이 컴퓨터의 최고 점수와 견준다)
+    function reportStat() {
+      if (!on()) return '';
+      const G = g(); let best = 0; try { best = +localStorage.getItem(BEST) || 0; } catch (err) { /* 저장 불가 환경 */ }
+      const isNew = G.score > best; if (isNew) { try { localStorage.setItem(BEST, String(G.score)); } catch (err) { /* 저장 불가 환경 */ } }
+      return `<div class="stat gstat"><b>${G.score.toLocaleString('ko-KR')}점</b>기록 점수 · 가장 긴 연속 ${G.best}${best ? (isNew ? ' · 최고 점수 새로 씀!' : ` · 내 최고 ${best.toLocaleString('ko-KR')}점`) : ''}</div>`;
+    }
+    // 보고서의 도전 과제(이번 기록에서 이룬 것)
+    function badges() {
+      if (!on()) return '';
+      const G = g(), full = Object.keys(CHECKS).filter((k) => G.checks[k] === CHECKS[k].length).length;
+      const plays = ['fx-guiju', 'fx-council', 'fx-debate', 'fx-sambyeol'].filter((k) => S.stars[k]).length;
+      const list = [
+        ['🔥', '연속 기록 5번', '한 번에 맞힌 기록을 5번 잇기', G.best >= 5, `${Math.min(G.best, 5)} / 5`],
+        ['🎯', '빠른 판정의 달인', '기억 확인에서 세 문장을 모두 맞힌 장 3개', full >= 3, `${Math.min(full, 3)} / 3`],
+        ['⚔', '작전 지휘관', '귀주·강화 천도·담판·삼별초 뱃길을 모두 한 번에', plays >= 4, `${plays} / 4`],
+        ['📚', '자료 수집가', '교과서 자료를 모두 모으기', S.mats.length >= MAT_TOTAL, `${S.mats.length} / ${MAT_TOTAL}`],
+        ['✒', '생각하는 기록관', '생각 기록을 세 번 이상 남기기', Object.keys(S.writes).length >= 3, `${Math.min(Object.keys(S.writes).length, 3)} / 3`],
+      ];
+      return `<h2>도전 과제</h2><div class="gbadges">${list.map(([ic, t, d, ok, n]) => `<div class="gb${ok ? ' got' : ''}"><i>${ic}</i><b>${esc(t)}</b><span>${esc(d)}</span><em>${ok ? '달성' : n}</em></div>`).join('')}</div>`;
+    }
+    return { on, hud, task, play, write, mat, enter, check, summary, reportStat, badges };
+  })();
+
   // ── 과제 ──
   // 결과 상자: 맞았는지 · 까닭 · 교과서 쪽 · (있으면) 더 생각해 보기
   function feedbackHtml(ok, why, p, reveal, think) {
@@ -3371,6 +3566,7 @@ const LV_META = {
   }
   function resultBar(t, id, ok, tries) {
     if (ok && tries === 1) S.stars[id] = true;
+    GAME.task(id, ok, tries);
     save();
     const bar = h(`<div class="taskbar paper"><div class="kicker">지도 기록 과제</div><h3>${esc(t.q)}</h3>${feedbackHtml(ok, t.why, t.p, !ok, t.think)}<div class="btnrow" style="margin-top:8px"><button class="btn gold">기록하기 ▸</button></div></div>`);
     app.appendChild(bar);
@@ -3396,6 +3592,7 @@ const LV_META = {
     await new Promise((resolve) => {
       const conclude = (ok) => {
         if (tries === 1 && ok) S.stars[id] = true;
+        GAME.task(id, ok, tries);
         save();
         fb.innerHTML = feedbackHtml(ok, t.why, t.p, !ok, t.think);
         row.innerHTML = '';
@@ -4108,6 +4305,7 @@ const LV_META = {
     await narrate(FX_LINES.guiju[0]);
     const first = await pickOnMap(GUIJU, '강감찬이 되어 돌아가는 거란군을 막을 곳을 고르세요');
     if (first) { S.stars['fx-guiju'] = true; save(); }
+    GAME.play('fx-guiju', !!first);
     const go = MAP.playTo('1019-02-05', 220);
     await wait(1600);
     const fire = h('<div class="mover burst">💥</div>'); layer.appendChild(fire); anchor(fire, 125.25, 39.98);
@@ -4135,6 +4333,7 @@ const LV_META = {
     });
     stopVO(); endCue(); await n;
     if (tries === 1) { S.stars['fx-council'] = true; save(); }
+    GAME.play('fx-council', tries === 1);
     v.classList.add('out'); await wait(350); v.remove();
   };
   FX.realms10 = async () => {
@@ -4290,6 +4489,7 @@ const LV_META = {
     setPos(4);
     sub.classList.remove('on');
     if (!v.dataset.miss) { S.stars['fx-debate'] = true; save(); }
+    GAME.play('fx-debate', !v.dataset.miss);
     v.appendChild(h('<div class="dstamp">담판 성공</div>'));
     await narrate(FX_LINES.debate[1]);
     const go = h('<button class="btn gold dgo">지도로 돌아가기 ▸</button>'); v.appendChild(go);
@@ -4432,6 +4632,7 @@ const LV_META = {
     await narrate(FX_LINES.sambyeolcho[2]);
     const s2 = await pickOnMap(SAMBYEOL[1].opts, SAMBYEOL[1].q);
     if (s1 && s2) { S.stars['fx-sambyeol'] = true; save(); }
+    GAME.play('fx-sambyeol', !!(s1 && s2));
     await sail([126.24, 34.45], '제주도로!', [[126.24, 34.45], [126.15, 34.0], [126.38, 33.5]], '1271-06-01', 60);
     await MAP.playTo('1273-05-10', 6);
     await narrate(FX_LINES.sambyeolcho[3]);
@@ -4727,7 +4928,7 @@ const LV_META = {
     $$('.wst .st', box).forEach((c) => (c.onclick = () => put(c.textContent.replace(/…/g, '').replace(/\s+/g, ' ').trim() + ' ')));
     ta.oninput = chk; chk(); ta.focus();
     await new Promise((res) => (b.onclick = res));
-    S.writes[id] = { q: w.q, a: ta.value.trim() }; save();
+    S.writes[id] = { q: w.q, a: ta.value.trim() }; save(); GAME.write(id, ta.value.trim());
     m.remove();
   }
 
@@ -4782,6 +4983,7 @@ const LV_META = {
   }
   async function runChapter(c, from = 0) {
     const ch = CHAPTERS[c];
+    GAME.enter(ch.id);
     // 제2장(인천 상륙·북진)에서는 중국군 개입을 숨기고, 제3장에서 드러낸다(교과서 지도 ②·③ 순서)
     MAP.setHideCN(false);
     pins.splice(0).forEach((p) => p.remove());
@@ -4794,11 +4996,12 @@ const LV_META = {
   }
   async function chapterDone(c) {
     const ch = CHAPTERS[c];
+    await GAME.check(c);
     const ids = ch.steps.map((s, i) => (s.task ? `${ch.id}-${i}` : null)).filter(Boolean);
     const got = ids.filter((i) => S.stars[i]).length;
     const box = h(`<div style="text-align:center"><div class="stamp">기록 완료</div><h3 style="margin-top:14px">${esc(ch.no)} 「${esc(ch.title)}」</h3>
       <p style="font-size:30px;margin:6px 0;letter-spacing:.2em;color:#c9a24a">${'★'.repeat(got)}${'☆'.repeat(ids.length - got)}</p>
-      <p class="pg">한 번에 맞힌 기록 과제 ${got} / ${ids.length} · 모은 자료 ${S.mats.length} / ${MAT_TOTAL}</p>
+      <p class="pg">한 번에 맞힌 기록 과제 ${got} / ${ids.length} · 모은 자료 ${S.mats.length} / ${MAT_TOTAL}</p>${GAME.summary(c)}
       <div class="btnrow" style="justify-content:center">${c < CHAPTERS.length - 1 ? '<button class="btn gold">다음 장으로 ▸</button>' : '<button class="btn gold">기록관 보고서 보기 ▸</button>'}</div></div>`);
     const m = modal(box);
     await new Promise((res) => { $('.btn', box).onclick = res; $('.btn', box).focus(); });
@@ -4883,8 +5086,8 @@ const LV_META = {
     const v = h(`<div class="report"><div class="doc">
       <div class="kicker">${esc(TOPIC.recorder)} · 최종 기록</div><h1>기록관 보고서</h1>
       <div class="meta">기록관 <b>${esc(S.name || '이름 없음')}</b> · ${today.getFullYear()}. ${today.getMonth() + 1}. ${today.getDate()}.</div>
-      <div class="stats"><div class="stat"><b>${stars} / ${TASK_TOTAL}</b>한 번에 맞힌 기록 과제</div><div class="stat"><b>${S.mats.length} / ${MAT_TOTAL}</b>살펴본 교과서 자료</div><div class="stat"><b>${esc(REPORT.span)}</b>${esc(REPORT.spanSub)}</div></div>
-      <div class="titlebadge"><span>나의 칭호</span><b>${esc(TT[1])}</b><small>${esc(TT[2])}</small></div><h2>지도로 본 고려의 대외 항쟁</h2><div class="maps">${maps.map(([k, t]) => `<div><img src="${img('tb_' + k)}" alt="">${t}</div>`).join('')}</div>
+      <div class="stats"><div class="stat"><b>${stars} / ${TASK_TOTAL}</b>한 번에 맞힌 기록 과제</div><div class="stat"><b>${S.mats.length} / ${MAT_TOTAL}</b>살펴본 교과서 자료</div><div class="stat"><b>${esc(REPORT.span)}</b>${esc(REPORT.spanSub)}</div>${GAME.reportStat()}</div>
+      <div class="titlebadge"><span>나의 칭호</span><b>${esc(TT[1])}</b><small>${esc(TT[2])}</small></div>${GAME.badges()}<h2>지도로 본 고려의 대외 항쟁</h2><div class="maps">${maps.map(([k, t]) => `<div><img src="${img('tb_' + k)}" alt="">${t}</div>`).join('')}</div>
       <h2>핵심 연표</h2><ul class="evlist">${key.map((d) => MAP.EV.find((e) => e.d === d)).filter(Boolean).map((e) => `<li><b>${fmtShort(e.d)}</b><span><strong>${esc(e.t)}</strong> — ${esc(e.s)}</span></li>`).join('')}</ul>
       <h2>사료 출처</h2><ul class="evlist rvsrc">${SOURCES.map(([a, b]) => `<li><b>${esc(a)}</b><span>${esc(b)}</span></li>`).join('')}</ul>
       <h2>나의 생각 기록</h2>${writes.map((w) => `<div class="qa"><div class="q">${esc(w.q)}</div><div class="a">${esc(w.a)}</div></div>`).join('') || '<p>기록 없음</p>'}
@@ -4922,7 +5125,7 @@ const LV_META = {
       const name = $('#nm', v).value.trim();
       if (cont && saved) S = { ...fresh(), ...saved, name: name || saved.name };
       else S = { ...fresh(), name, mode };
-      save(); $('#nMats').textContent = S.mats.length;
+      save(); $('#nMats').textContent = S.mats.length; GAME.hud();
       v.style.transition = 'opacity .6s'; v.style.opacity = 0;
       await wait(500); v.remove();
       // 주소 끝에 #장=2&단계=5 처럼 붙이면 그 장면부터 시작한다(수업용 바로가기)
