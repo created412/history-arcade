@@ -1318,7 +1318,10 @@ html.phone .stcard .spic, .stcard .spic { min-height: 0; }
 .mover.king.envoy b { background: #5d3570; white-space: nowrap; }
 .mover.king.envoy.down span { font: 900 34px var(--serif); color: #c8202c; text-shadow: 0 0 6px #fff, 0 0 2px #fff; filter: none; }
 .mover.king.envoy.down b { background: #8f1520; }
-</style>
+/* 순서 과제: 칸 수 = 카드 수, 가로 그림은 가로 카드 */
+@media (min-width: 761px) { .ordergrid { grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); } }
+.ordergrid.land .ordercard img { display: block; aspect-ratio: 16 / 9; object-fit: cover; }
+.ordergrid.land .ordercard .cap { font-size: 15px; padding: 6px 0 2px; }</style>
 </head>
 <body>
 <div id="rotate" role="alert"><div class="ph"></div><b>휴대폰을 가로로 돌려 주세요</b><span>이 기록관은 가로 화면에서만 진행돼요.<br>화면 자동 회전이 꺼져 있으면 켜 주세요.</span></div>
@@ -1824,7 +1827,7 @@ const CHAPTERS = [
       { leader: 'baejungson', hot: { at: [126.47, 37.73], label: '강화도 · 삼별초', icon: 'flag', view: { lon: [125.2, 128.4], lat: [36.6, 38.8] } },
         intro: [['guide', '삼별초는 무신 정권 때 최우가 설치한 부대예요. 무신 정권이 무너지고 개경 환도가 결정되자, 삼별초는 이에 반발해 봉기했어요.']], back: 'korea' },
       { fx: 'sambyeolcho' },
-      { task: { type: 'order', q: '삼별초가 항쟁한 곳을 옮겨 간 순서대로 누르세요.', hint: '개경 환도에 반발한 곳에서 시작해, 남쪽 섬을 거쳐 가장 먼 섬에서 끝났어요.', think: '삼별초는 왜 육지가 아니라 섬을 근거지로 삼았을까요?',
+      { task: { type: 'order', q: '삼별초가 항쟁한 곳을 옮겨 간 순서대로 누르세요.', sub: '먼저 머문 곳부터 차례로 누르세요.', hint: '개경 환도에 반발한 곳에서 시작해, 남쪽 섬을 거쳐 가장 먼 섬에서 끝났어요.', think: '삼별초는 왜 육지가 아니라 섬을 근거지로 삼았을까요?',
         items: [{ img: 'B_c3', t: '강화도' }, { img: 'B_c4', t: '진도' }, { img: 'hangpaduri', t: '제주도(탐라)' }],
         why: '강화도(1270) → 진도(1270~1271) → 제주도(1271~1273). 1273년 고려 정부와 몽골의 연합군에게 진압되었어요.', p: 34 } },
       { write: { q: '나는 삼별초의 항쟁을 어떻게 생각하는지, 까닭과 함께 말해 보자.', p: 34,
@@ -3416,9 +3419,11 @@ const MAP = (() => {
         });
         body.append(zones, tray);
       } else if (t.type === 'order') {
-        $('h3', box).innerHTML = `${esc(t.q)} <small>먼저 일어난 지도부터 차례로 누르세요.</small>`;
+        $('h3', box).innerHTML = `${esc(t.q)} <small>${esc(t.sub || '먼저 일어난 지도부터 차례로 누르세요.')}</small>`;
         const idx = shuffle(t.items.map((_, i) => i));
-        const g = h('<div class="ordergrid"></div>');
+        const g = h(`<div class="ordergrid" style="--n:${t.items.length}"></div>`);
+        // 가로로 긴 그림만 있으면 카드도 가로로 맞춘다(세로 카드에 넣으면 위아래가 빈다)
+        Promise.all(t.items.map((it) => new Promise((r) => { const im = new Image(); im.onload = () => r(im.naturalWidth / (im.naturalHeight || 1)); im.onerror = () => r(0); im.src = ASSETS['tb_' + it.img] || img(it.img); }))).then((rs) => { if (rs.every((x) => x > 1.15)) g.classList.add('land'); });
         let seq = [];
         idx.forEach((i) => {
           const it = t.items[i];
