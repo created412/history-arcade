@@ -1303,14 +1303,29 @@ html.phone .stcard .spic, .stcard .spic { min-height: 0; }
 .debate .dgo { position: absolute; left: 50%; bottom: 40px; transform: translateX(-50%); }
 .debate .dtag { position: absolute; right: 12px; bottom: 8px; font-size: 11px; color: rgba(255, 255, 255, .6); }
 @media (max-height: 560px) { .debate .dname { top: 44px; font-size: 22px; } .debate .vs { font-size: 40px; } .debate .dsub { bottom: 138px; padding: 6px 10px; } .debate .dsub .tx { font-size: 14px; min-height: 2.6em; } .debate .dopt { font-size: 12px; padding: 6px 8px; } .debate .dq { font-size: 14px; } .debate .meter { top: 8px; } }
+
+/* ── 2026-11-26 손질 ── */
+/* 말하는 영상과 대기 영상이 부드럽게 겹치며 넘어간다 */
+.leader .vid.talk { transition: opacity .7s ease; }
+.leader .vid.talk.on { transition: opacity .35s ease; }
+/* 교과서 지도 카드: 그림 아래가 비지 않게 내용 높이에 맞추고, 가로로 긴 지도는 넓게 */
+.tbref.wide { width: min(460px, 44vw); }
+.tbref.fit { bottom: auto; }
+.tbref.fit .tbimg { flex: none; display: block; }
+.tbref.fit .tbimg img { display: block; width: 100%; height: auto; max-height: none; }
+/* 몽골 사신 피살 연출 */
+#map .envoy-route { fill: none; stroke: #ffd76b; stroke-width: calc(var(--u) * 3.6px); filter: drop-shadow(0 0 2px rgba(40, 20, 0, .9)); stroke-dasharray: calc(var(--u) * 6px) calc(var(--u) * 4px); }
+.mover.king.envoy b { background: #5d3570; white-space: nowrap; }
+.mover.king.envoy.down span { font: 900 34px var(--serif); color: #c8202c; text-shadow: 0 0 6px #fff, 0 0 2px #fff; filter: none; }
+.mover.king.envoy.down b { background: #8f1520; }
 </style>
 </head>
 <body>
 <div id="rotate" role="alert"><div class="ph"></div><b>휴대폰을 가로로 돌려 주세요</b><span>이 기록관은 가로 화면에서만 진행돼요.<br>화면 자동 회전이 꺼져 있으면 켜 주세요.</span></div>
 <div id="app"><div id="mapHost"></div><div class="vignette"></div></div>
 <script>window.EDITION = "teach";</script>
-<script src="data/assets.js"></script>
-<script src="data/voice-cast.js"></script>
+<script src="data/assets.js?v=23728288"></script>
+<script src="data/voice-cast.js?v=1826127"></script>
 <script>
 // ASSETS: data/assets.js
 // VO: data/voice-cast.js (+ data/voice-guide.js)
@@ -1383,7 +1398,7 @@ const REAL = {};
 const SOURCES = [
   ['『고려사』', '서희의 외교 담판(재구성)·삼별초의 봉기·공민왕의 교서·전민변정도감 설치 — 교과서 29·32·33·34쪽'],
   ['『고려사절요』', '이자겸 등의 금 사대 주장·몽골 침입 당시의 삶 — 교과서 35·65쪽'],
-  ['교과서 밖 보충', '김윤후와 충주성(『고려사』 열전), 이성계의 4불가론(『고려사』), 천리장성 완성·동북 9성·송 건국·명 건국 등의 연도'],
+  ['교과서 밖 보충', '몽골 사신 피살(『고려사』 고종 12년), 김윤후와 충주성(『고려사』 열전), 이성계의 4불가론(『고려사』), 천리장성 완성·동북 9성·송 건국·명 건국 등의 연도'],
 ];
 
 // 장별 배경음악(없으면 court로)
@@ -1758,6 +1773,7 @@ const CHAPTERS = [
       { say: [['guide', '13세기 초, 몽골이 세력을 키웠어요. 다원적 국제 질서가 무너지고 몽골을 중심으로 하는 질서가 만들어지기 시작해요.']] },
       { map: { to: '1225-02-01', view: 'korea', speed: 2 } },
       { say: [['guide', '고려는 몽골에 쫓겨 온 거란을 물리치는 과정에서 몽골과 외교 관계를 맺었어요. 그런데 몽골은 지나친 공물을 요구했고, 몽골 사신이 귀국길에 살해되는 사건이 일어났어요.']] },
+      { fx: 'envoy' },
       { map: { to: '1231-12-20', speed: 3 } },
       { say: [['guide', '1231년, 몽골은 사신 피살을 구실로 고려를 침입했어요. 고려는 일단 몽골과 강화를 맺었어요.']] },
       { fx: 'council' },
@@ -2031,6 +2047,13 @@ Object.assign(FX_LINES, {
 });
 FX_LINES.sambyeolcho[0] = '삼별초는 배를 타고 남쪽으로 내려갔어요. 삼별초가 어디로 갔는지 지도에서 골라 보세요.';
 FX_LINES.sambyeolcho[2] = '남은 세력은 다시 배를 타고 떠났어요. 이번에는 어디로 갔을까요?';
+// ── 3차 보강(2026-11-26): 몽골 사신 피살 사건(1225) 연출 ──
+FX_LINES.envoy = [
+  '어떤 일이 있었는지 자세히 볼까요? 몽골 사신은 고려에 올 때마다 수달 가죽과 비단 같은 공물을 지나치게 요구했어요.',
+  '1225년 1월, 공물을 받은 몽골 사신 일행이 개경을 떠나 압록강으로 향했어요. 사신이 가는 길을 따라가 보세요.',
+  { t: '몽골 사신이 서경을 떠나 압록강을 건너면서 …… 도중에 도적에게 살해당하자, 몽골에서 도리어 우리를 의심하여 마침내 국교가 끊어지게 되었다.', src: '『고려사』 고종 12년(교과서 밖 보충)' },
+  '고려는 도적의 짓이라고 했지만, 몽골은 고려가 죽였다고 여기고 외교 관계를 끊었어요. 고려를 굴복시키려던 몽골에게는 군대를 보낼 좋은 구실이 생긴 거예요.',
+];
 const MAP = (() => {
   const P = GEO.proj;
   const NS = 'http://www.w3.org/2000/svg';
@@ -3016,6 +3039,39 @@ const MAP = (() => {
   }
   const clickOnce = (el) => new Promise((r) => el.addEventListener('click', r, { once: true }));
 
+  // ── 입 모양 영상 지켜보기 ──
+  // 영상에 오류가 나거나(소리 장치 오류 등) 서 버려도 반드시 끝나서 「다음」 단추가 나오게 한다.
+  async function talkReady(tv) {
+    if (tv.error) tv.load(); // 한 번 오류가 난 영상은 다시 불러와야 재생된다
+    if (tv.readyState < 1) await Promise.race([new Promise((r) => { tv.onloadedmetadata = r; tv.onerror = r; }), wait(4000)]);
+    tv.onloadedmetadata = tv.onerror = null;
+    if (tv.error || !(tv.duration > 0)) return false;
+    try { tv.currentTime = 0; } catch (err) { /* 그대로 재생 */ }
+    return true;
+  }
+  function playTalk(tv, fallback) {
+    return new Promise((res) => {
+      let fin = false, last = -1, still = 0, iv = 0;
+      const close = () => { fin = true; clearInterval(iv); tv.onended = tv.onerror = null; };
+      const end = () => { if (fin) return; close(); res(); };
+      // 영상에 오류가 나면 같은 대사를 목소리 파일로 들려주고 넘어간다
+      const rescue = async () => {
+        if (fin) return; close();
+        try { tv.pause(); } catch (err) { /* 이미 섬 */ }
+        tv.classList.remove('on');
+        if (fallback) { try { await fallback().done; } catch (err) { /* 소리 없이 넘어감 */ } }
+        res();
+      };
+      tv.onended = end; tv.onerror = rescue;
+      iv = setInterval(() => {
+        if (tv.error) return rescue();
+        if (tv.ended) return end();
+        if (tv.currentTime === last) { if (++still >= 8) rescue(); } else { still = 0; last = tv.currentTime; } // 2초 넘게 서 있음
+      }, 250);
+      const p = tv.play(); if (p && p.catch) p.catch(rescue);
+    });
+  }
+
   // ── 지도자 ──
   async function leaderScene(key, opts = {}) {
     const L = LEADERS[key];
@@ -3048,12 +3104,10 @@ const MAP = (() => {
       if (R) {
         const a = playReal(P.real);
         dur = await a.dur; done = a.done;
-      } else if (useTalk && tv && !muted) {
-        tv.currentTime = 0;
-        dur = await new Promise((r) => (tv.readyState >= 1 ? r(tv.duration) : (tv.onloadedmetadata = () => r(tv.duration))));
+      } else if (useTalk && tv && !muted && (await talkReady(tv))) {
+        dur = tv.duration;
         tv.classList.add('on'); duck(true);
-        done = new Promise((r) => (tv.onended = r));
-        tv.play().catch(() => { tv.onended && tv.onended(); });
+        done = playTalk(tv, () => playVO(key, P.t));
       } else {
         const vo = playVO(key, P.t);
         dur = await vo.dur; done = vo.done;
@@ -3191,8 +3245,14 @@ const MAP = (() => {
       <p>지도 위 말풍선이 교과서 지도의 표기와 같은 자리에 떠 있어요. 두 지도를 견주어 보세요.</p><button class="btn gold">계속 ▸</button></div>`);
     app.appendChild(v);
     const P = MAP.pad(), tl = $('.timeline');
+    const gapB = (tl ? innerHeight - tl.getBoundingClientRect().top : 60) + 8;
     v.style.top = P.t + 'px';
-    v.style.bottom = ((tl ? innerHeight - tl.getBoundingClientRect().top : 60) + 8) + 'px';
+    // 가로로 긴 지도는 칸을 넓히고, 그림 아래가 비지 않게 칸 높이를 내용에 맞춘다(넘치면 예전처럼 위아래를 채운다)
+    const tim = $('.tbimg img', v);
+    try { await tim.decode(); } catch (err) { /* 그림을 못 읽으면 예전 배치 */ }
+    if (tim.naturalWidth > tim.naturalHeight * 1.25) v.classList.add('wide');
+    v.classList.add('fit');
+    if (v.getBoundingClientRect().bottom > innerHeight - gapB) { v.classList.remove('fit'); v.style.bottom = gapB + 'px'; }
     padL = v.getBoundingClientRect().right + 4;
     await MAP.setView('korea');
     $$('.callout').forEach((c) => c.classList.toggle('hl', c.dataset.tb === k));
@@ -3703,8 +3763,7 @@ const MAP = (() => {
     }
     else if (talk && !muted) {
       dur = await new Promise((r) => (vid.readyState >= 1 ? r(vid.duration) : (vid.onloadedmetadata = () => r(vid.duration))));
-      done = new Promise((r) => (vid.onended = r));
-      duck(true); vid.play().catch(() => vid.onended && vid.onended());
+      duck(true); done = playTalk(vid, opts.vo ? () => playVO(opts.vo, line.t) : null);
     } else if (opts.vo) { const vo = playVO(opts.vo, line.t); dur = await vo.dur; done = vo.done; }
     else { dur = Math.max(4, line.t.length * 0.09); done = wait(dur * 1000); }
     const ty = typer(tx, line.t, dur * 1000 * 0.95);
@@ -4095,7 +4154,7 @@ const MAP = (() => {
       if (vsrc && !muted) {
         tv.src = vsrc; tv.currentTime = 0;
         dur = await new Promise((r) => (tv.readyState >= 1 ? r(tv.duration) : (tv.onloadedmetadata = () => r(tv.duration))));
-        tv.classList.add('on'); duck(true); done = new Promise((r) => (tv.onended = r)); tv.play().catch(() => tv.onended && tv.onended());
+        tv.classList.add('on'); duck(true); done = playTalk(tv, () => playVO(who, text));
       } else { const vo = playVO(who, text); dur = await vo.dur; done = vo.done; }
       const ty = typer($('.tx', sub), text, dur * 1000 * 0.95);
       await done; ty.finish(); duck(false); tv.classList.remove('on');
@@ -4169,6 +4228,35 @@ const MAP = (() => {
     await picView('S_yanggyu', '양규의 반격(1011)', '양규 등이 돌아가는 거란군에게 큰 타격을 주었다. · 교과서 29쪽(포로 구출은 교과서 밖 보충)', MAP.toScreen(124.95, 40.0));
     await narrate(FX_LINES.yanggyu[1]);
     mv.stop(); MAP.clearFx();
+    await MAP.setView('korea');
+  };
+  // 몽골 사신 피살(1225): 왜 「구실」이 되었는지 보여 준다
+  FX.envoy = async () => {
+    const GAE = [126.55, 37.97], SPOT = [124.28, 40.42];
+    await MAP.setView({ lon: [122.4, 128.6], lat: [37.2, 41.7] });
+    await narrate(FX_LINES.envoy[0]);
+    await picView('S_envoy_tribute', '몽골 사신의 공물 요구', '몽골은 고려에 과도한 공물을 요구하였다. · 교과서 32쪽(공물의 종류는 교과서 밖 보충)', MAP.toScreen(GAE[0], GAE[1]));
+    const route = [GAE, [126.2, 38.5], [125.75, 39.03], [125.3, 39.6], [124.8, 39.98], [124.5, 40.2], SPOT];
+    const n1 = narrate(FX_LINES.envoy[1]);
+    const trail = MAP.drawPath(route, 'envoy-route', 5600);
+    const k = h('<div class="mover king envoy"><span>🐎</span><b>몽골 사신 · 공물</b></div>'); layer.appendChild(k);
+    const t0 = performance.now();
+    while (performance.now() - t0 < 5600) { const t = (performance.now() - t0) / 5600; const [lo, la] = lerpPath(route, t); anchor(k, lo, la); await wait(30); }
+    anchor(k, SPOT[0], SPOT[1]);
+    await trail; await n1;
+    const fire = h('<div class="mover burst">💥</div>'); layer.appendChild(fire); anchor(fire, SPOT[0], SPOT[1]);
+    await boom(); fire.remove();
+    k.remove();
+    const hot = hotspot(SPOT[0], SPOT[1], '압록강 · 몽골 사신 피살', 'leader-hot', 'war');
+    const ins = instruct('사신 피살 — 빨간 원이 퍼지는 곳을 눌러 보세요');
+    await clickOnce(hot); ins.done(); hot.remove();
+    await picView('S_envoy', '몽골 사신 피살(1225)', '고려에 왔던 몽골 사신이 귀국길에 살해되었다. 누가 죽였는지는 알려지지 않았다. · 교과서 32쪽(연도·장소는 교과서 밖 보충)', MAP.toScreen(SPOT[0], SPOT[1]));
+    const x = h('<div class="mover king envoy down"><span>✕</span><b>1225년 몽골 사신 피살</b></div>'); layer.appendChild(x); anchor(x, SPOT[0], SPOT[1]);
+    await narrate(FX_LINES.envoy[2]);
+    MAP.addText('고려 「도적의 짓이다」', 128.45, 38.0, 'fx-label blue');
+    MAP.addText('몽골 「고려가 죽였다」 → 국교 단절', 125.4, 41.25, 'fx-label red');
+    await narrate(FX_LINES.envoy[3]);
+    x.remove(); MAP.clearFx();
     await MAP.setView('korea');
   };
   FX.cheolli = async () => {
