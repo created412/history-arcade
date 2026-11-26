@@ -1306,8 +1306,7 @@ html.phone .stcard .spic, .stcard .spic { min-height: 0; }
 
 /* ── 2026-11-26 손질 ── */
 /* 말하는 영상과 대기 영상이 부드럽게 겹치며 넘어간다 */
-.leader .vid.talk { transition: opacity .7s ease; }
-.leader .vid.talk.on { transition: opacity .35s ease; }
+.leader .vid.talk { transition: opacity .6s ease; }
 /* 교과서 지도 카드: 그림 아래가 비지 않게 내용 높이에 맞추고, 가로로 긴 지도는 넓게 */
 .tbref.wide { width: min(460px, 44vw); }
 .tbref.fit { bottom: auto; }
@@ -1321,13 +1320,32 @@ html.phone .stcard .spic, .stcard .spic { min-height: 0; }
 /* 순서 과제: 칸 수 = 카드 수, 가로 그림은 가로 카드 */
 @media (min-width: 761px) { .ordergrid { grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); } }
 .ordergrid.land .ordercard img { display: block; aspect-ratio: 16 / 9; object-fit: cover; }
-.ordergrid.land .ordercard .cap { font-size: 15px; padding: 6px 0 2px; }</style>
+.ordergrid.land .ordercard .cap { font-size: 15px; padding: 6px 0 2px; }
+/* 인물 영상 이어 붙이기: 말한 뒤 이어지는 영상(after)과 잠시 받아 두는 그림(hold)은 겹침 없이 바로 바꾼다 */
+.leader .vid.after, .leader .vid.hold { opacity: 0; }
+.leader .vid.after.on, .leader .vid.hold.on { opacity: 1; }
+.debate .dh { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.debate .l .dh { object-position: left center; } .debate .r .dh { object-position: right center; }
+.debate .da, .debate .dh { opacity: 0; } .debate .da.on, .debate .dh.on { opacity: 1; }
+.debate .dt { transition: opacity .5s ease; }
+/* 대사 칸: 단추 자리를 미리 잡고, 대사가 달라질 때 살짝 거두었다가 보인다 */
+.leader .qs { transition: opacity .35s ease; }
+.leader .qs.wait { opacity: 0; pointer-events: none; }
+.leader .speech { transition: opacity .2s ease; }
+.leader .speech.swap { opacity: 0; }
+/* 대화창: 인물 그림이 달라질 때·창이 닫힐 때 */
+.dlg .por img.pin { animation: fadein .35s ease; }
+.dlg.out { opacity: 0; transition: opacity .2s ease; pointer-events: none; }
+/* 그림이 크게 다른 장면으로 넘어갈 때 살짝 어두워졌다 환해지는 막 */
+.leader .veil, .debate .dvl { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; transition: opacity .45s ease; }
+.leader .veil.on, .debate .dvl.on { opacity: 1; transition: opacity .28s ease; }
+</style>
 </head>
 <body>
 <div id="rotate" role="alert"><div class="ph"></div><b>휴대폰을 가로로 돌려 주세요</b><span>이 기록관은 가로 화면에서만 진행돼요.<br>화면 자동 회전이 꺼져 있으면 켜 주세요.</span></div>
 <div id="app"><div id="mapHost"></div><div class="vignette"></div></div>
 <script>window.EDITION = "solo";</script>
-<script src="data/assets.js?v=23728288"></script>
+<script src="data/assets.js?v=24759013"></script>
 <script src="data/voice-cast.js?v=1826127"></script>
 <script src="data/voice-guide.js?v=5256691"></script>
 <script>
@@ -2058,7 +2076,25 @@ FX_LINES.envoy = [
   { t: '몽골 사신이 서경을 떠나 압록강을 건너면서 …… 도중에 도적에게 살해당하자, 몽골에서 도리어 우리를 의심하여 마침내 국교가 끊어지게 되었다.', src: '『고려사』 고종 12년(교과서 밖 보충)' },
   '고려는 도적의 짓이라고 했지만, 몽골은 고려가 죽였다고 여기고 외교 관계를 끊었어요. 고려를 굴복시키려던 몽골에게는 군대를 보낼 좋은 구실이 생긴 거예요.',
 ];
-const MAP = (() => {
+
+// ── 인물 영상 이어 붙이기 정보(2026-11-26, lv/matchpose.js·after2.js로 구한 값) ──
+//  s·e: 영상 속 목소리가 시작하고 끝나는 때(초). 글자는 이 사이에 찍히고, 끝나면 단추가 나온다(영상은 끝까지 간다).
+//  cut: 대기 영상과 그림이 달라 첫 장면을 천천히 겹쳐 들어간다.
+//  back: 말한 뒤 대기 영상으로 돌아갈 때 맞출 시각(끝 장면과 가장 가까운 곳). 없으면 LV_<인물>_after 영상으로 그대로 이어진다.
+const LV_META = {
+  LV_wanggeon_talk: { s: 1.26, e: 11.3, back: 0.42 },
+  LV_seohui_talk: { s: 1.24, e: 8, back: 1.33 },
+  LV_gamchan_talk: { s: 0.78, e: 9, back: 0 },
+  LV_ijagyeom_talk: { s: 1.22, e: 13.7, back: 0 },
+  LV_yungwan_talk: { s: 1.01, e: 9.7, cut: true },
+  LV_choeu_talk: { s: 0.2, e: 7.4, cut: true },
+  LV_baejungson_talk: { s: 0.24, e: 10.55, cut: true },
+  LV_gongmin_talk: { s: 0, e: 14.7 },
+  LV_choeyoung_talk: { s: 0.2, e: 7.4 },
+  LV_iseonggye_talk: { s: 0, e: 15.67 },
+  LV_sosonnyeong_talk: { s: 0.62, e: 6.83, cut: true },
+  LV_seohui_talk2: { s: 0, e: 7.7, cut: true },
+};const MAP = (() => {
   const P = GEO.proj;
   const NS = 'http://www.w3.org/2000/svg';
   const DAY = 86400000;
@@ -2886,7 +2922,7 @@ const MAP = (() => {
       if (teach() && who === 'guide') { d.style.display = 'none'; await teacherCue(L); d.style.display = ''; prevWho = who; continue; }
       if (who === 'announcer' && prevWho !== 'announcer') { d.style.visibility = 'hidden'; await boom(); d.style.visibility = ''; }
       prevWho = who;
-      $('.por img', d).src = img(p.img);
+      { const pi = $('.por img', d), ns = img(p.img); if (pi.getAttribute('src') !== ns) { pi.src = ns; pi.classList.remove('pin'); void pi.offsetWidth; pi.classList.add('pin'); } }
       $('.who', d).innerHTML = `<b>${esc(p.name)}</b><span>${esc(p.role)}</span>${badgeFor(p.kind, L.src)}`;
       const tx = $('.txt', d);
       tx.className = 'txt' + (L.src ? ' quote' : '');
@@ -2905,6 +2941,7 @@ const MAP = (() => {
       stopVO();
     }
     advance = null;
+    d.classList.add('out'); await wait(220);
     d.remove();
     if (bg) hideScene();
   }
@@ -3043,7 +3080,7 @@ const MAP = (() => {
   }
   const clickOnce = (el) => new Promise((r) => el.addEventListener('click', r, { once: true }));
 
-  // ── 입 모양 영상 지켜보기 ──
+  // ── 입 모양 영상: 앞뒤 화면과 끊기지 않게 이어 붙이기 ──
   // 영상에 오류가 나거나(소리 장치 오류 등) 서 버려도 반드시 끝나서 「다음」 단추가 나오게 한다.
   async function talkReady(tv) {
     if (tv.error) tv.load(); // 한 번 오류가 난 영상은 다시 불러와야 재생된다
@@ -3053,27 +3090,75 @@ const MAP = (() => {
     try { tv.currentTime = 0; } catch (err) { /* 그대로 재생 */ }
     return true;
   }
-  function playTalk(tv, fallback) {
+  // 겹침 없이 곧바로 보이기·감추기
+  const snapOn = (el, on) => { if (!el) return; el.style.transition = 'none'; el.classList.toggle('on', on); void el.offsetWidth; el.style.transition = ''; };
+  // 옮겨 놓은 장면이 화면에 실제로 그려질 때까지 기다린다
+  const painted = (el) => new Promise((r) => {
+    let did = false; const go = () => { if (did) return; did = true; requestAnimationFrame(() => requestAnimationFrame(r)); };
+    if (el.seeking) el.addEventListener('seeked', go, { once: true }); else go();
+    setTimeout(go, 700);
+  });
+  // o.endAt: 목소리가 끝나는 때(이때 다음으로 넘어갈 수 있게 돌려준다. 영상은 끝까지 간다)
+  // o.after: 영상의 마지막 장면에서 그대로 이어지는 작은 반복 영상 / o.idle·o.back: 대기 영상과 거기서 가장 가까운 시각
+  function playTalk(tv, fallback, o = {}) {
     return new Promise((res) => {
-      let fin = false, last = -1, still = 0, iv = 0;
-      const close = () => { fin = true; clearInterval(iv); tv.onended = tv.onerror = null; };
-      const end = () => { if (fin) return; close(); res(); };
+      let fin = false, said = false, last = -1, still = 0, iv = 0;
+      const say = () => { if (!said) { said = true; res(); } };
+      const close = () => { fin = true; clearInterval(iv); tv.onended = tv.onerror = null; tv._stop = null; };
+      const end = async () => {
+        if (fin) return; close(); say();
+        if (o.after) { // 같은 자세로 이어지는 반복 영상으로 바꾼다(첫 장면이 같아 티가 나지 않는다)
+          try { o.after.currentTime = 0; } catch (err) { /* 그대로 */ }
+          snapOn(o.after, true); o.after.play().catch(() => {});
+          await painted(o.after); snapOn(tv, false);
+        } else if (o.idle && o.back != null) { // 대기 영상을 가장 가까운 장면에 맞춰 놓고 겹쳐 넘긴다
+          try { o.idle.currentTime = o.back; } catch (err) { /* 그대로 */ }
+          await painted(o.idle); tv.style.transitionDuration = '.6s'; tv.classList.remove('on'); setTimeout(() => { tv.style.transitionDuration = ''; }, 700);
+        } else if (o.hold) { tv.style.transitionDuration = '1.2s'; tv.classList.remove('on'); setTimeout(() => { tv.style.transitionDuration = ''; }, 1300); }
+        else tv.classList.remove('on');
+      };
       // 영상에 오류가 나면 같은 대사를 목소리 파일로 들려주고 넘어간다
       const rescue = async () => {
         if (fin) return; close();
         try { tv.pause(); } catch (err) { /* 이미 섬 */ }
         tv.classList.remove('on');
-        if (fallback) { try { await fallback().done; } catch (err) { /* 소리 없이 넘어감 */ } }
-        res();
+        if (!said && fallback) { try { await fallback().done; } catch (err) { /* 소리 없이 넘어감 */ } }
+        say();
       };
-      tv.onended = end; tv.onerror = rescue;
+      tv._stop = close; tv.onended = end; tv.onerror = rescue;
       iv = setInterval(() => {
         if (tv.error) return rescue();
         if (tv.ended) return end();
-        if (tv.currentTime === last) { if (++still >= 8) rescue(); } else { still = 0; last = tv.currentTime; } // 2초 넘게 서 있음
-      }, 250);
+        if (o.endAt && tv.currentTime >= o.endAt) say();
+        if (tv.currentTime === last) { // 서 있음: 1.5초면 한 번 살짝 밀어 보고, 그래도 안 되면(선 채 1.5초·끊긴 채 5초) 목소리로 넘긴다
+          still++;
+          if (still === 15 && !tv.paused) { try { tv.currentTime = last + 0.04; } catch (err) { /* 그대로 */ } }
+          if (still >= (tv.paused ? 15 : 50)) rescue();
+        } else { still = 0; last = tv.currentTime; }
+      }, 100);
       const p = tv.play(); if (p && p.catch) p.catch(rescue);
     });
+  }
+  // 말하는 영상 시작. 대기 영상과 그림이 다르거나(M.cut) 말한 뒤 자세에서 다시 틀 때는
+  // 화면이 살짝 어두워졌다가 첫 장면으로 환해진 다음 말을 시작한다. 준비가 안 되면 null(목소리만 재생).
+  async function talkStart(tv, o) {
+    const M = o.M || {};
+    if (tv._stop) tv._stop();
+    if (tv.classList.contains('on')) { // 아직 떠 있는 말하는 영상: 지금 장면을 그림으로 받아 두고 처음으로 돌린다
+      if (o.hold && tv.videoWidth) { try { o.hold.width = tv.videoWidth; o.hold.height = tv.videoHeight; o.hold.getContext('2d').drawImage(tv, 0, 0); snapOn(o.hold, true); } catch (err) { /* 그림 없이 */ } }
+      try { tv.pause(); } catch (err) { /* 이미 섬 */ }
+      snapOn(tv, false);
+    }
+    const drop = () => { snapOn(o.hold, false); if (o.after && o.after.classList.contains('on')) { snapOn(o.after, false); try { o.after.pause(); } catch (err) { /* 이미 섬 */ } } };
+    if (!(await talkReady(tv))) { drop(); return null; }
+    const under = (o.after && o.after.classList.contains('on')) || (o.hold && o.hold.classList.contains('on'));
+    await painted(tv);
+    if ((M.cut || under) && o.veil) { // 그림이 크게 다른 장면으로 넘어갈 때: 살짝 어두워졌다가 새 장면으로 환해진다
+      o.veil.classList.add('on'); await wait(300);
+      snapOn(tv, true); drop(); await painted(tv);
+      o.veil.classList.remove('on'); await wait(200);
+    } else { tv.style.transitionDuration = '.35s'; tv.classList.add('on'); setTimeout(() => { tv.style.transitionDuration = ''; }, 400); drop(); }
+    return { done: playTalk(tv, o.fallback, { endAt: M.e ? M.e + 0.3 : 0, after: o.after, idle: o.idle, back: M.back, hold: o.hold }) };
   }
 
   // ── 지도자 ──
@@ -3083,43 +3168,53 @@ const MAP = (() => {
     const main = !opts.line && L.real ? { real: L.real, t: realText(L.real) } : lineParts(opts.line || L.line);
     const intro = !opts.line && L.intro ? lineParts(L.intro) : null;
     const idle = ASSETS[`LV_${key}_idle`], talk = opts.line ? null : ASSETS[`LV_${key}_talk`];
+    const after = talk && ASSETS[`LV_${key}_after`];
+    const M = (talk && typeof LV_META !== 'undefined' && LV_META[`LV_${key}_talk`]) || {};
     // 말할 차례: [대사, 입 모양 영상 사용 여부]
     const turns = opts.introOnly ? [[intro || main, false]] : intro ? [[intro, false], [main, true]] : [[main, true]];
     const v = h(`<div class="leader">
       <div class="art${L.flip ? ' flip' : ''}" style="background-image:url(${img(L.img)})"></div>
       ${idle ? `<video class="vid idle${L.flip ? ' flip' : ''}" src="${idle}" muted loop playsinline autoplay></video>` : ''}
+      ${after ? `<video class="vid after${L.flip ? ' flip' : ''}" src="${after}" muted loop playsinline preload="auto"></video>` : ''}${talk ? `<canvas class="vid hold${L.flip ? ' flip' : ''}"></canvas>` : ''}
       ${talk ? `<video class="vid talk${L.flip ? ' flip' : ''}" src="${talk}" playsinline preload="auto"></video>` : ''}
-      <div class="shade"></div>
+      <div class="veil"></div><div class="shade"></div>
       <div class="aitag" title="${esc(L.voice ? '목소리 바탕: ' + L.voice : '실제 인물의 모습·목소리와 다릅니다')}">${L.voice ? 'AI 상상 영상 · 실제 녹음으로 AI가 재현한 목소리 · 실제 발언 아님' : 'AI 상상 영상 · 목소리도 AI'}</div>
       <div class="plate"><span class="nat">${esc(L.nation)}</span><h2>${esc(L.name)}</h2><p>${esc(L.title)}</p><div class="bar"></div></div>
       <div class="panel"><div class="speech"><div class="meta"></div><div class="txt"></div><div class="srcline"></div></div>
       <div class="qs"></div></div></div>`);
     app.appendChild(v);
-    const tv = $('.talk', v), tx = $('.txt', v), qs = $('.qs', v);
+    const tv = $('.talk', v), tx = $('.txt', v), qs = $('.qs', v), sp = $('.speech', v);
+    const av = $('.after', v), hold = $('.hold', v), idleV = $('.idle', v);
+    // 단추 자리를 미리 잡아 둔다(말이 끝날 때 대사 칸이 위아래로 움직이지 않게)
+    qs.innerHTML = '<button class="qbtn ghost" disabled>↻ 다시 듣기</button><button class="qbtn end" disabled>다음 ▸</button>'; qs.classList.add('wait');
     async function speak(P, useTalk) {
-      qs.innerHTML = '';
+      qs.classList.add('wait'); $$('button', qs).forEach((b) => (b.disabled = true));
       const R = P.real && REAL[P.real];
+      if (tx.textContent) { sp.classList.add('swap'); await wait(180); } // 앞 대사를 거두고 새 대사로
+      tx.textContent = '';
       $('.meta', v).innerHTML = R ? `<span class="badge real">실제 육성 · ${esc(R.lang)}</span> <span class="rwhen">${esc(R.when)} ${esc(R.where)}</span>`
         : P.src ? '<span class="badge src">사료</span>' : '<span class="badge adapt" title="교과서 내용을 바탕으로 인물의 말로 다시 꾸민 대사">재구성 대사</span>';
       tx.className = 'txt' + (P.src || R ? ' quote' : '');
       $('.srcline', v).innerHTML = R ? realFoot(P.real) : P.src ? `— ${esc(P.src)}` : '';
       $('.aitag', v).textContent = R ? 'AI 상상 영상 · 목소리는 실제 녹음' : L.voice ? 'AI 상상 영상 · 실제 녹음으로 AI가 재현한 목소리 · 실제 발언 아님' : 'AI 상상 영상 · 목소리도 AI';
-      let done, dur;
+      // 대사가 모두 나왔을 때의 높이를 미리 잡는다(글자가 찍히는 동안 칸이 자라지 않게)
+      tx.style.minHeight = ''; tx.textContent = P.t; tx.style.minHeight = tx.offsetHeight + 'px'; tx.textContent = '';
+      sp.classList.remove('swap');
+      let done, dur, lead = 0, tk = null;
       if (R) {
         const a = playReal(P.real);
         dur = await a.dur; done = a.done;
-      } else if (useTalk && tv && !muted && (await talkReady(tv))) {
-        dur = tv.duration;
-        tv.classList.add('on'); duck(true);
-        done = playTalk(tv, () => playVO(key, P.t));
+      } else if (useTalk && tv && !muted && (tk = await talkStart(tv, { after: av, hold, idle: idleV, veil: $('.veil', v), M, fallback: () => playVO(key, P.t) }))) {
+        duck(true); done = tk.done; lead = M.s || 0; dur = Math.max(1, (M.e || tv.duration) - lead); // 글자는 목소리가 나는 동안 찍힌다
       } else {
         const vo = playVO(key, P.t);
         dur = await vo.dur; done = vo.done;
       }
-      const ty = typer(tx, P.t, dur * 1000 * 0.95);
-      $('.speech', v).onclick = () => ty.finish();
+      let ty = null, skip = false;
+      sp.onclick = () => { skip = true; if (ty) ty.finish(); };
+      if (lead) await Promise.race([wait(lead * 1000), done]);
+      ty = typer(tx, P.t, dur * 1000 * 0.95); if (skip) ty.finish();
       await done; ty.finish(); duck(false);
-      if (tv) tv.classList.remove('on');
     }
     await wait(900);
     for (let i = 0; i < turns.length; i++) {
@@ -3133,7 +3228,7 @@ const MAP = (() => {
           again.onclick = async () => { await speak(P, useTalk); draw(); };
           const go = h(`<button class="qbtn end">${last ? (opts.next || '지도로 돌아가기 ▸') : '다음 ▸'}</button>`);
           go.onclick = res;
-          qs.append(again, go); go.focus();
+          qs.append(again, go); qs.classList.remove('wait'); go.focus();
         };
         draw();
       });
@@ -4140,7 +4235,7 @@ const MAP = (() => {
   // 서희의 외교 담판: 양쪽에 마주 선 두 사람, 말 고르기, 줄다리기 막대
   FX.debate = async () => {
     await narrate(FX_LINES.debate[0]);
-    const side = (key, lr) => { const L = LEADERS[key]; const idle = ASSETS[`LV_${key}_idle`]; return `<div class="dside ${lr}" data-k="${key}"><div class="dart" style="background-image:url(${img(L.img)})"></div>${idle ? `<video class="dv" src="${idle}" muted loop playsinline autoplay></video>` : ''}<video class="dt" playsinline></video><div class="dtint"></div><div class="dname"><small>${esc(L.nation)}</small>${esc(L.name)}</div></div>`; };
+    const side = (key, lr) => { const L = LEADERS[key]; const idle = ASSETS[`LV_${key}_idle`]; return `<div class="dside ${lr}" data-k="${key}"><div class="dart" style="background-image:url(${img(L.img)})"></div>${idle ? `<video class="dv" src="${idle}" muted loop playsinline autoplay></video>` : ''}<video class="da" muted loop playsinline></video><canvas class="dh"></canvas><video class="dt" playsinline></video><div class="dvl"></div><div class="dtint"></div><div class="dname"><small>${esc(L.nation)}</small>${esc(L.name)}</div></div>`; };
     const v = h(`<div class="debate">${side('seohui', 'l')}${side('sosonnyeong', 'r')}<div class="vs">VS</div>
       <div class="meter"><b class="ml">고려</b><div class="track"><i class="mk"></i></div><b class="mr">거란</b></div>
       <div class="dsub"></div><div class="dopts"></div><div class="dtag">AI 상상 영상 · 목소리도 AI</div></div>`);
@@ -4156,14 +4251,18 @@ const MAP = (() => {
       sub.innerHTML = `<div class="who"><b>${esc(P.name)}</b><span class="badge src">사료</span></div><div class="tx"></div><div class="srcline">— ${esc(src)}</div>`;
       sub.classList.add('on');
       const tv = $(`.dside[data-k="${sideKey}"] .dt`, v), vsrc = videoKey && ASSETS[videoKey];
-      let dur, done;
+      let dur, done, lead = 0;
       if (vsrc && !muted) {
-        tv.src = vsrc; tv.currentTime = 0;
-        dur = await new Promise((r) => (tv.readyState >= 1 ? r(tv.duration) : (tv.onloadedmetadata = () => r(tv.duration))));
-        tv.classList.add('on'); duck(true); done = playTalk(tv, () => playVO(who, text));
-      } else { const vo = playVO(who, text); dur = await vo.dur; done = vo.done; }
+        if (tv.getAttribute('src') !== vsrc) tv.src = vsrc;
+        const sd = tv.parentElement, av = $('.da', sd), ak = videoKey.replace('_talk', '_after'), M = (typeof LV_META !== 'undefined' && LV_META[videoKey]) || {};
+        if (ASSETS[ak] && av.getAttribute('src') !== ASSETS[ak]) av.src = ASSETS[ak];
+        const tk = await talkStart(tv, { after: ASSETS[ak] ? av : null, hold: $('.dh', sd), idle: $('.dv', sd), veil: $('.dvl', sd), M, fallback: () => playVO(who, text) });
+        if (tk) { duck(true); done = tk.done; lead = M.s || 0; dur = Math.max(1, (M.e || tv.duration) - lead); }
+      }
+      if (!done) { const vo = playVO(who, text); dur = await vo.dur; done = vo.done; }
+      if (lead) await Promise.race([wait(lead * 1000), done]);
       const ty = typer($('.tx', sub), text, dur * 1000 * 0.95);
-      await done; ty.finish(); duck(false); tv.classList.remove('on');
+      await done; ty.finish(); duck(false);
       await wait(500);
     };
     const src = '『고려사』 재구성(교과서 29쪽)';
