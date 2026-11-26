@@ -1345,7 +1345,7 @@ html.phone .stcard .spic, .stcard .spic { min-height: 0; }
 <div id="rotate" role="alert"><div class="ph"></div><b>휴대폰을 가로로 돌려 주세요</b><span>이 기록관은 가로 화면에서만 진행돼요.<br>화면 자동 회전이 꺼져 있으면 켜 주세요.</span></div>
 <div id="app"><div id="mapHost"></div><div class="vignette"></div></div>
 <script>window.EDITION = "solo";</script>
-<script src="data/assets.js?v=24759013"></script>
+<script src="data/assets.js?v=25067190"></script>
 <script src="data/voice-cast.js?v=1826127"></script>
 <script src="data/voice-guide.js?v=5601922"></script>
 <script>
@@ -2079,21 +2079,21 @@ FX_LINES.envoy = [
 
 // ── 인물 영상 이어 붙이기 정보(2026-11-26, lv/matchpose.js·after2.js로 구한 값) ──
 //  s·e: 영상 속 목소리가 시작하고 끝나는 때(초). 글자는 이 사이에 찍히고, 끝나면 단추가 나온다(영상은 끝까지 간다).
-//  cut: 대기 영상과 그림이 달라 첫 장면을 천천히 겹쳐 들어간다.
+//  cut: 대기 영상과 그림이 달라 살짝 어두워졌다 환해지며 들어간다(지금은 해당 없음: 2026-11-26에 말하는 영상의 첫 장면으로 대기 영상을 새로 만들어 맞추었다).
 //  back: 말한 뒤 대기 영상으로 돌아갈 때 맞출 시각(끝 장면과 가장 가까운 곳). 없으면 LV_<인물>_after 영상으로 그대로 이어진다.
 const LV_META = {
   LV_wanggeon_talk: { s: 1.26, e: 11.3, back: 0.42 },
   LV_seohui_talk: { s: 1.24, e: 8, back: 1.33 },
   LV_gamchan_talk: { s: 0.78, e: 9, back: 0 },
   LV_ijagyeom_talk: { s: 1.22, e: 13.7, back: 0 },
-  LV_yungwan_talk: { s: 1.01, e: 9.7, cut: true },
-  LV_choeu_talk: { s: 0.2, e: 7.4, cut: true },
-  LV_baejungson_talk: { s: 0.24, e: 10.55, cut: true },
+  LV_yungwan_talk: { s: 1.01, e: 9.7, back: 0 },
+  LV_choeu_talk: { s: 0.2, e: 7.4 },
+  LV_baejungson_talk: { s: 0.24, e: 10.55 },
   LV_gongmin_talk: { s: 0, e: 14.7 },
   LV_choeyoung_talk: { s: 0.2, e: 7.4 },
   LV_iseonggye_talk: { s: 0, e: 15.67 },
-  LV_sosonnyeong_talk: { s: 0.62, e: 6.83, cut: true },
-  LV_seohui_talk2: { s: 0, e: 7.7, cut: true },
+  LV_sosonnyeong_talk: { s: 0.62, e: 6.83 },
+  LV_seohui_talk2: { s: 0, e: 7.7, back: 0.71 }, // 담판 장면은 LV_seohui_idle2를 대기 영상으로 쓴다
 };const MAP = (() => {
   const P = GEO.proj;
   const NS = 'http://www.w3.org/2000/svg';
@@ -3157,7 +3157,7 @@ const LV_META = {
       o.veil.classList.add('on'); await wait(300);
       snapOn(tv, true); drop(); await painted(tv);
       o.veil.classList.remove('on'); await wait(200);
-    } else { tv.style.transitionDuration = '.35s'; tv.classList.add('on'); setTimeout(() => { tv.style.transitionDuration = ''; }, 400); drop(); }
+    } else { tv.style.transitionDuration = '.45s'; tv.classList.add('on'); setTimeout(() => { tv.style.transitionDuration = ''; }, 500); drop(); }
     return { done: playTalk(tv, o.fallback, { endAt: M.e ? M.e + 0.3 : 0, after: o.after, idle: o.idle, back: M.back, hold: o.hold }) };
   }
 
@@ -4235,7 +4235,7 @@ const LV_META = {
   // 서희의 외교 담판: 양쪽에 마주 선 두 사람, 말 고르기, 줄다리기 막대
   FX.debate = async () => {
     await narrate(FX_LINES.debate[0]);
-    const side = (key, lr) => { const L = LEADERS[key]; const idle = ASSETS[`LV_${key}_idle`]; return `<div class="dside ${lr}" data-k="${key}"><div class="dart" style="background-image:url(${img(L.img)})"></div>${idle ? `<video class="dv" src="${idle}" muted loop playsinline autoplay></video>` : ''}<video class="da" muted loop playsinline></video><canvas class="dh"></canvas><video class="dt" playsinline></video><div class="dvl"></div><div class="dtint"></div><div class="dname"><small>${esc(L.nation)}</small>${esc(L.name)}</div></div>`; };
+    const side = (key, lr) => { const L = LEADERS[key]; const idle = ASSETS[`LV_${key}_idle2`] || ASSETS[`LV_${key}_idle`]; return `<div class="dside ${lr}" data-k="${key}"><div class="dart" style="background-image:url(${img(L.img)})"></div>${idle ? `<video class="dv" src="${idle}" muted loop playsinline autoplay></video>` : ''}<video class="da" muted loop playsinline></video><canvas class="dh"></canvas><video class="dt" playsinline></video><div class="dvl"></div><div class="dtint"></div><div class="dname"><small>${esc(L.nation)}</small>${esc(L.name)}</div></div>`; };
     const v = h(`<div class="debate">${side('seohui', 'l')}${side('sosonnyeong', 'r')}<div class="vs">VS</div>
       <div class="meter"><b class="ml">고려</b><div class="track"><i class="mk"></i></div><b class="mr">거란</b></div>
       <div class="dsub"></div><div class="dopts"></div><div class="dtag">AI 상상 영상 · 목소리도 AI</div></div>`);
